@@ -141,7 +141,8 @@ public abstract class DeviceServiceProvider<T extends BaseDeviceState> {
         intent.putExtras(extras);
 
         activity.startService(intent);
-        activity.bindService(intent, getConnection(), Context.BIND_ABOVE_CLIENT);
+        activity.bindService(intent, getConnection(),
+                Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
 
         bound = true;
     }
