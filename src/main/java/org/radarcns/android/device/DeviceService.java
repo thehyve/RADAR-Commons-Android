@@ -25,6 +25,7 @@ import android.os.*;
 import android.support.annotation.CallSuper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Base64;
 import android.util.Pair;
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.R;
@@ -42,9 +43,14 @@ import org.radarcns.topic.AvroTopic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.radarcns.android.RadarConfiguration.*;
@@ -145,10 +151,11 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
         }
         if (intent != null) {
             onInvocation(intent.getExtras());
+        } else {
+            onInvocation(null);
         }
-        // If we get killed, after returning from here, restart
-        // keep all the configuration from the previous iteration
-        return START_REDELIVER_INTENT;
+
+        return START_STICKY;
     }
 
     @Nullable
@@ -472,6 +479,12 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
      */
     @CallSuper
     protected void onInvocation(Bundle bundle) {
+        SharedPreferences prefs = getSharedPreferences(getClass().getName() + ".invocation", MODE_PRIVATE);
+        if (bundle == null) {
+            bundle = restoreFromPreferences(prefs);
+        } else {
+            saveToPreferences(prefs, bundle);
+        }
         TableDataHandler localDataHandler;
 
         ServerConfig kafkaConfig = null;
@@ -596,5 +609,45 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
         } else {
             return getClass().getSimpleName() + "<" + localManager.getName() + ">";
         }
+    }
+
+    private void saveToPreferences(SharedPreferences prefs, Bundle in) {
+        Parcel parcel = Parcel.obtain();
+        String serialized = null;
+        try {
+            in.writeToParcel(parcel, 0);
+
+            try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                bos.write(parcel.marshall());
+                serialized = Base64.encodeToString(bos.toByteArray(), 0);
+            }
+        } catch (IOException e) {
+            logger.error(getClass().getSimpleName(), e.toString(), e);
+        } finally {
+            parcel.recycle();
+        }
+        if (serialized != null) {
+            prefs.edit()
+                .putString("parcel", serialized)
+                .apply();
+        }
+    }
+
+    private Bundle restoreFromPreferences(SharedPreferences prefs) {
+        Bundle bundle = null;
+        String serialized = prefs.getString("parcel", null);
+
+        if (serialized != null) {
+            Parcel parcel = Parcel.obtain();
+            try {
+                byte[] data = Base64.decode(serialized, 0);
+                parcel.unmarshall(data, 0, data.length);
+                parcel.setDataPosition(0);
+                bundle = parcel.readBundle(getClass().getClassLoader());
+            } finally {
+                parcel.recycle();
+            }
+        }
+        return bundle;
     }
 }
