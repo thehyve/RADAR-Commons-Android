@@ -313,7 +313,7 @@ public abstract class MainActivity extends Activity {
         synchronized (this) {
             mHandler = localHandler;
         }
-        mView = createView();
+        setView(createView());
 
         new AsyncTask<DeviceServiceProvider, Void, Void>() {
             @Override
@@ -694,5 +694,9 @@ public abstract class MainActivity extends Activity {
 
     public AppAuthState getAuthState() {
         return authState;
+    }
+
+    protected void setView(MainActivityView view) {
+        this.mView = view;
     }
 }

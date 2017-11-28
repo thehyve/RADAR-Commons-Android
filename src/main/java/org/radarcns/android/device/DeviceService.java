@@ -35,6 +35,7 @@ import org.radarcns.android.auth.AppAuthState;
 import org.radarcns.android.data.DataCache;
 import org.radarcns.android.data.TableDataHandler;
 import org.radarcns.android.kafka.ServerStatusListener;
+import org.radarcns.android.util.BundleSerialization;
 import org.radarcns.config.ServerConfig;
 import org.radarcns.data.Record;
 import org.radarcns.key.MeasurementKey;
@@ -149,11 +150,8 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
         synchronized (this) {
             latestStartId = startId;
         }
-        if (intent != null) {
-            onInvocation(intent.getExtras());
-        } else {
-            onInvocation(null);
-        }
+
+        onInvocation(BundleSerialization.getPersistentExtras(intent, this));
 
         return START_STICKY;
     }
@@ -479,12 +477,6 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
      */
     @CallSuper
     protected void onInvocation(Bundle bundle) {
-        SharedPreferences prefs = getSharedPreferences(getClass().getName() + ".invocation", MODE_PRIVATE);
-        if (bundle == null) {
-            bundle = restoreFromPreferences(prefs);
-        } else {
-            saveToPreferences(prefs, bundle);
-        }
         TableDataHandler localDataHandler;
 
         ServerConfig kafkaConfig = null;
@@ -609,45 +601,5 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
         } else {
             return getClass().getSimpleName() + "<" + localManager.getName() + ">";
         }
-    }
-
-    private void saveToPreferences(SharedPreferences prefs, Bundle in) {
-        Parcel parcel = Parcel.obtain();
-        String serialized = null;
-        try {
-            in.writeToParcel(parcel, 0);
-
-            try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-                bos.write(parcel.marshall());
-                serialized = Base64.encodeToString(bos.toByteArray(), 0);
-            }
-        } catch (IOException e) {
-            logger.error(getClass().getSimpleName(), e.toString(), e);
-        } finally {
-            parcel.recycle();
-        }
-        if (serialized != null) {
-            prefs.edit()
-                .putString("parcel", serialized)
-                .apply();
-        }
-    }
-
-    private Bundle restoreFromPreferences(SharedPreferences prefs) {
-        Bundle bundle = null;
-        String serialized = prefs.getString("parcel", null);
-
-        if (serialized != null) {
-            Parcel parcel = Parcel.obtain();
-            try {
-                byte[] data = Base64.decode(serialized, 0);
-                parcel.unmarshall(data, 0, data.length);
-                parcel.setDataPosition(0);
-                bundle = parcel.readBundle(getClass().getClassLoader());
-            } finally {
-                parcel.recycle();
-            }
-        }
-        return bundle;
     }
 }
