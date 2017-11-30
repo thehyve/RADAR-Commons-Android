@@ -169,13 +169,9 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
         logger.info("Received (re)bind in {}", this);
         boolean isNew = numberOfActivitiesBound.getAndIncrement() == 0;
         RadarApplication application = (RadarApplication)getApplicationContext();
-        if (intent != null) {
-            Bundle extras = intent.getExtras();
-            onInvocation(extras);
-            application.onDeviceServiceInvocation(this, extras, isNew);
-        } else {
-            application.onDeviceServiceInvocation(this, null, isNew);
-        }
+        Bundle extras = BundleSerialization.getPersistentExtras(intent, this);
+        onInvocation(extras);
+        application.onDeviceServiceInvocation(this, extras, isNew);
     }
 
     @Override
