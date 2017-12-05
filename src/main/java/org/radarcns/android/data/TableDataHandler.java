@@ -184,8 +184,12 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
             if (isStarted()) {
                 stop();
             }
-            networkConnectedReceiver.unregister();
-            batteryLevelReceiver.unregister();
+            try {
+                networkConnectedReceiver.unregister();
+                batteryLevelReceiver.unregister();
+            } catch (IllegalArgumentException ex) {
+                logger.warn("Not yet registered");
+            }
         }
     }
 
@@ -198,8 +202,12 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
     }
 
     private void doEnableSubmitter() {
-        networkConnectedReceiver.register();
-        batteryLevelReceiver.register();
+        try {
+            networkConnectedReceiver.register();
+            batteryLevelReceiver.register();
+        } catch (IllegalArgumentException ex) {
+            logger.warn("Not yet registered");
+        }
         updateServerStatus(Status.READY);
     }
 
@@ -209,8 +217,12 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
      */
     public synchronized void close() throws IOException {
         if (status != Status.DISABLED) {
-            networkConnectedReceiver.unregister();
-            batteryLevelReceiver.unregister();
+            try {
+                networkConnectedReceiver.unregister();
+                batteryLevelReceiver.unregister();
+            } catch (IllegalArgumentException ex) {
+                logger.warn("Not yet registered");
+            }
         }
         if (this.submitter != null) {
             this.submitter.close();  // will also close sender
