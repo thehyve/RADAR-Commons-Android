@@ -237,7 +237,10 @@ public abstract class MainActivity extends Activity {
             public void run() {
                 try {
                     // Update all rows in the UI with the data from the connections
-                    MainActivityView localView = mView;
+                    MainActivityView localView;
+                    synchronized (MainActivity.this) {
+                        localView = mView;
+                    }
                     if (localView != null) {
                         localView.update();
                     }
@@ -341,9 +344,9 @@ public abstract class MainActivity extends Activity {
         unregisterReceiver(bluetoothReceiver);
         synchronized (this) {
             mHandler = null;
+            mView = null;
         }
         mHandlerThread.quitSafely();
-        mView = null;
 
         for (DeviceServiceProvider provider : mConnections) {
             if (provider.isBound()) {
@@ -696,7 +699,7 @@ public abstract class MainActivity extends Activity {
         return authState;
     }
 
-    protected void setView(MainActivityView view) {
+    protected synchronized void setView(MainActivityView view) {
         this.mView = view;
     }
 }
