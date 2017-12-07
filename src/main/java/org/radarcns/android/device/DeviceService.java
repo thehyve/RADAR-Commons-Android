@@ -24,6 +24,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -124,6 +125,7 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
     private boolean isConnected;
     private int latestStartId = -1;
     private String userId;
+    private WifiManager.WifiLock mWifiLock;
 
     @CallSuper
     @Override
@@ -264,6 +266,15 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
             }
             isInForeground = true;
         }
+
+        if (mWifiLock == null) {
+            WifiManager wifiManager = (WifiManager)getApplicationContext()
+                    .getSystemService(Context.WIFI_SERVICE);
+
+            mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, getClass().getName());
+            mWifiLock.acquire();
+        }
+
         Context context = getApplicationContext();
         Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, 0);
@@ -293,6 +304,10 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
                 return;
             }
             isInForeground = false;
+        }
+        if (mWifiLock != null) {
+            mWifiLock.release();
+            mWifiLock = null;
         }
         stopForeground(true);
     }
