@@ -16,6 +16,8 @@
 
 package org.radarcns.android.kafka;
 
+import android.content.Context;
+import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -60,6 +62,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
     private final AtomicInteger sendLimit;
     private final HandlerThread mHandlerThread;
     private final Handler mHandler;
+    private final Context context;
 
     private boolean lastUploadFailed = false;
     private Runnable uploadFuture;
@@ -68,8 +71,10 @@ public class KafkaDataSubmitter<V> implements Closeable {
     private long uploadRate;
     private String userId;
 
-    public KafkaDataSubmitter(@NonNull DataHandler<MeasurementKey, V> dataHandler, @NonNull
-            KafkaSender<MeasurementKey, V> sender, int sendLimit, long uploadRate, String userId) {
+    public KafkaDataSubmitter(@NonNull Context context,
+            @NonNull DataHandler<MeasurementKey, V> dataHandler,
+            @NonNull KafkaSender<MeasurementKey, V> sender, int sendLimit, long uploadRate,
+            String userId) {
         this.dataHandler = dataHandler;
         this.sender = sender;
         this.userId = userId;
@@ -77,6 +82,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
         trySendFuture = new HashMap<>();
         topicSenders = new HashMap<>();
         this.sendLimit = new AtomicInteger(sendLimit);
+        this.context = context;
 
         mHandlerThread = new HandlerThread("data-submitter", THREAD_PRIORITY_BACKGROUND);
         mHandlerThread.start();
@@ -264,6 +270,13 @@ public class KafkaDataSubmitter<V> implements Closeable {
      * Upload a limited amount of data stored in the database which is not yet sent.
      */
     private void uploadCaches(Set<AvroTopic<MeasurementKey, ? extends V>> toSend) {
+        WifiManager wifiManager = (WifiManager)context.getApplicationContext()
+                .getSystemService(Context.WIFI_SERVICE);
+
+        WifiManager.WifiLock mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL,
+                context.getClass().getName());
+        mWifiLock.acquire();
+
         boolean uploadingNotified = false;
         int currentSendLimit = sendLimit.get();
         try {
@@ -288,6 +301,8 @@ public class KafkaDataSubmitter<V> implements Closeable {
             if (!lastUploadFailed) {
                 connection.didDisconnect(ex);
             }
+        } finally {
+            mWifiLock.release();
         }
     }
 

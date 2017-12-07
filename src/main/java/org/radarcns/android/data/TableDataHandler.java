@@ -59,6 +59,7 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
     private final BatteryLevelReceiver batteryLevelReceiver;
     private final NetworkConnectedReceiver networkConnectedReceiver;
     private final AtomicBoolean sendOnlyWithWifi;
+    private final Context context;
     private AppAuthState authState;
     private ServerConfig kafkaConfig;
     private SchemaRetriever schemaRetriever;
@@ -81,6 +82,7 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
                             List<AvroTopic<MeasurementKey, ? extends SpecificRecord>> topics,
                             int maxBytes, boolean sendOnlyWithWifi, AppAuthState authState)
             throws IOException {
+        this.context = context;
         this.kafkaConfig = kafkaUrl;
         this.schemaRetriever = schemaRetriever;
         this.kafkaUploadRate = UPLOAD_RATE_DEFAULT;
@@ -154,7 +156,7 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
                 .useCompression(useCompression)
                 .headers(authState.getHeaders())
                 .build();
-        this.submitter = new KafkaDataSubmitter<>(this, sender, kafkaRecordsSendLimit,
+        this.submitter = new KafkaDataSubmitter<>(context, this, sender, kafkaRecordsSendLimit,
                 getPreferredUploadRate(), authState.getUserId());
     }
 

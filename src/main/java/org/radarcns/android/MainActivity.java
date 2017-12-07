@@ -66,6 +66,7 @@ import static android.Manifest.permission.ACCESS_NETWORK_STATE;
 import static android.Manifest.permission.BLUETOOTH;
 import static android.Manifest.permission.INTERNET;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
+import static android.Manifest.permission.WAKE_LOCK;
 import static org.radarcns.android.auth.LoginActivity.ACTION_LOGIN;
 import static org.radarcns.android.device.DeviceService.DEVICE_CONNECT_FAILED;
 import static org.radarcns.android.device.DeviceService.DEVICE_STATUS_NAME;
@@ -505,7 +506,7 @@ public abstract class MainActivity extends Activity {
     }
 
     protected List<String> getActivityPermissions() {
-        return Arrays.asList(ACCESS_NETWORK_STATE, INTERNET);
+        return Arrays.asList(ACCESS_NETWORK_STATE, INTERNET, WAKE_LOCK);
     }
 
     protected void checkPermissions() {
