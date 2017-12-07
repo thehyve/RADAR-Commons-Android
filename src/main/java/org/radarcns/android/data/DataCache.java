@@ -75,7 +75,7 @@ public interface DataCache<K, V> extends Flushable, Closeable {
     /** Return a list to cache. It will be cleared immediately and should not be used again. */
     void returnList(List list);
 
-    /** Set the time until data is committed to disk. */
+    /** Set the time until data is committed to disk. Time in milliseconds. */
     void setTimeWindow(long period);
 
     /** Set the maximum size the data cache may have in bytes. */
