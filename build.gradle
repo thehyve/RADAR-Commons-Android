@@ -1,11 +1,12 @@
 buildscript {
     repositories {
         jcenter()
+        google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.0'
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
-        classpath 'com.github.dcendents:android-maven-gradle-plugin:1.5'
+        classpath 'com.android.tools.build:gradle:3.0.1'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.0'
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.0'
     }
 }
 
@@ -14,12 +15,12 @@ apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.dcendents.android-maven'
 
 android {
-    compileSdkVersion 26
-    buildToolsVersion "26.0.1"
+    compileSdkVersion 27
+    buildToolsVersion '27.0.1'
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 26
+        targetSdkVersion 27
         versionCode 5
         versionName '0.3-SNAPSHOT'
         manifestPlaceholders = ['appAuthRedirectScheme': 'org.radarcns.android']
@@ -31,16 +32,20 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-
-            libraryVariants.all { variant ->
-                variant.outputs.each { output ->
-                    if (output.outputFile != null && output.outputFile.name.endsWith('.aar')) {
-                        output.outputFile = new File(output.outputFile.parent,
-                                "${archivesBaseName}-${android.defaultConfig.versionName}.aar")
-                    }
-                }
+        }
+    }
+    libraryVariants.all { variant ->
+        variant.outputs.all {
+            if (variant.name == 'release') {
+                outputFileName = "${archivesBaseName}-${android.defaultConfig.versionName}.aar"
+            } else {
+                outputFileName = "${archivesBaseName}-${android.defaultConfig.versionName}-${variant.name}.aar"
             }
         }
+    }
+    packagingOptions {
+        exclude 'META-INF/ASL2.0'
+        exclude 'META-INF/LICENSE'
     }
 }
 
@@ -68,16 +73,16 @@ configurations.compile {
 
 repositories {
     jcenter()
-    maven { url 'https://maven.google.com' }
+    google()
     maven { url 'https://oss.jfrog.org/artifactory/oss-snapshot-local' }
 }
 
 dependencies {
     compile 'com.journeyapps:zxing-android-embedded:3.5.0'
-    compile 'com.squareup.okhttp3:okhttp:3.8.0'
+    compile 'com.squareup.okhttp3:okhttp:3.9.1'
     compile 'org.apache.avro:avro:1.8.2'
-    compile 'org.xerial.snappy:snappy-java:1.1.2.6'
-    compile 'com.google.firebase:firebase-config:11.4.2'
+    compile 'org.xerial.snappy:snappy-java:1.1.4'
+    compile 'com.google.firebase:firebase-config:11.8.0'
     compile 'net.openid:appauth:0.6.1'
     compile 'io.jsonwebtoken:jjwt:0.7.0'
     compile ('org.radarcns:radar-commons:0.5') {
@@ -88,7 +93,7 @@ dependencies {
     compile 'org.radarcns:radar-schemas-commons:0.2-alpha.1'
 
     testCompile 'junit:junit:4.12'
-    testCompile 'org.slf4j:slf4j-simple:1.7.21'
+    testCompile 'org.slf4j:slf4j-simple:1.7.25'
     testCompile 'org.robolectric:robolectric:3.4.2'
 }
 
@@ -109,8 +114,14 @@ task sourcesJar(type: Jar) {
 
 task javadoc(type: Javadoc) {
     source = android.sourceSets.main.java.srcDirs
-    classpath += configurations.compile
+    android.libraryVariants.all { variant ->
+        if (variant.name == 'release') {
+            owner.classpath += variant.javaCompiler.classpath
+        }
+    }
     classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    exclude '**/R.java'
+    exclude '**/BuildConfig.java'
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
@@ -207,6 +218,5 @@ bintray {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '4.1'
-    distributionUrl distributionUrl.replace("bin", "all")
+    gradleVersion '4.4'
 }
