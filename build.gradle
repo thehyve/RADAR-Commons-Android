@@ -4,7 +4,7 @@ buildscript {
         google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.0.1'
+        classpath 'com.android.tools.build:gradle:3.1.1'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.0'
         classpath 'com.github.dcendents:android-maven-gradle-plugin:2.0'
     }
@@ -16,7 +16,7 @@ apply plugin: 'com.github.dcendents.android-maven'
 
 android {
     compileSdkVersion 27
-    buildToolsVersion '27.0.1'
+    buildToolsVersion '27.0.3'
 
     defaultConfig {
         minSdkVersion 21
@@ -78,23 +78,34 @@ repositories {
 }
 
 dependencies {
-    compile 'com.journeyapps:zxing-android-embedded:3.5.0'
-    compile 'com.squareup.okhttp3:okhttp:3.9.1'
-    compile 'org.apache.avro:avro:1.8.2'
-    compile 'org.xerial.snappy:snappy-java:1.1.4'
-    compile 'com.google.firebase:firebase-config:11.8.0'
-    compile 'net.openid:appauth:0.6.1'
-    compile 'io.jsonwebtoken:jjwt:0.7.0'
-    compile ('org.radarcns:radar-commons:0.5') {
+    implementation 'com.journeyapps:zxing-android-embedded:3.5.0'
+    implementation 'com.squareup.okhttp3:okhttp:3.9.1'
+    api ('org.apache.avro:avro:1.8.2') {
+        exclude group: 'com.thoughtworks.paranamer', module: 'paranamer'
+        exclude group: 'org.xerial.snappy', module: 'snappy-java'
+        exclude group: 'org.apache.commons', module: 'commons-compress'
+        exclude group: 'org.tukaani', module: 'xz'
+    }
+    api 'com.google.firebase:firebase-config:15.0.0'
+    api ('org.radarcns:radar-commons:0.5') {
         exclude group: 'io.confluent', module: 'kafka-avro-serializer'
         exclude group: 'org.apache.kafka', module: 'kafka-clients'
         exclude group: 'com.fasterxml.jackson.dataformat', module: 'jackson-dataformat-yaml'
+        exclude group: 'com.thoughtworks.paranamer', module: 'paranamer'
+        exclude group: 'org.xerial.snappy', module: 'snappy-java'
+        exclude group: 'org.apache.commons', module: 'commons-compress'
+        exclude group: 'org.tukaani', module: 'xz'
     }
-    compile 'org.radarcns:radar-schemas-commons:0.2-alpha.1'
+    api ('org.radarcns:radar-schemas-commons:0.2-alpha.1') {
+        exclude group: 'com.thoughtworks.paranamer', module: 'paranamer'
+        exclude group: 'org.xerial.snappy', module: 'snappy-java'
+        exclude group: 'org.apache.commons', module: 'commons-compress'
+        exclude group: 'org.tukaani', module: 'xz'
+    }
 
-    testCompile 'junit:junit:4.12'
-    testCompile 'org.slf4j:slf4j-simple:1.7.25'
-    testCompile 'org.robolectric:robolectric:3.4.2'
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.slf4j:slf4j-simple:1.7.25'
+    testImplementation 'org.robolectric:robolectric:3.4.2'
 }
 
 //---------------------------------------------------------------------------//
