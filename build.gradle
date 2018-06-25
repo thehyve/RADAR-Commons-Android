@@ -86,7 +86,8 @@ dependencies {
         exclude group: 'org.apache.commons', module: 'commons-compress'
         exclude group: 'org.tukaani', module: 'xz'
     }
-    api 'com.google.firebase:firebase-config:16.0.0'
+    // Cannot go to Firebase config 16 because of Google places
+    api 'com.google.firebase:firebase-config:15.0.2'
     api ('org.radarcns:radar-commons:0.5') {
         exclude group: 'io.confluent', module: 'kafka-avro-serializer'
         exclude group: 'org.apache.kafka', module: 'kafka-clients'
