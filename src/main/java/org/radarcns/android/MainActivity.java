@@ -404,6 +404,10 @@ public abstract class MainActivity extends Activity {
         }
         requestedBt = false;
         for (DeviceServiceProvider<?> provider : mConnections) {
+            if (!provider.shouldAutoStart()) {
+                continue;
+            }
+
             DeviceServiceConnection connection = provider.getConnection();
             if (!connection.hasService() || connection.isRecording() || !checkPermissions(provider)) {
                 continue;

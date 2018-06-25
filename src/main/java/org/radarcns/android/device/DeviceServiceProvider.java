@@ -92,6 +92,13 @@ public abstract class DeviceServiceProvider<T extends BaseDeviceState> {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Whether given service should be auto-started by the main activity.
+     */
+    public boolean shouldAutoStart() {
+        return true;
+    }
+
     public DeviceServiceProvider() {
         bound = false;
     }
