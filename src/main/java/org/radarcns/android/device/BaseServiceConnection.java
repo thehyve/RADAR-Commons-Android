@@ -113,8 +113,9 @@ public class BaseServiceConnection<S extends BaseDeviceState> implements Service
     }
 
     public S getDeviceData() {
-        //noinspection unchecked
-        return (S)serviceBinder.getDeviceStatus();
+        @SuppressWarnings("unchecked")
+        S data = (S)serviceBinder.getDeviceStatus();
+        return data;
     }
 
     @Override

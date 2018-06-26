@@ -277,9 +277,11 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
         Notification.Builder builder;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             builder = new Notification.Builder(getApplicationContext(),
-                    RadarApplication.NOTIFICATION_CHANNEL_NOTIFY);
+                    RadarApplication.NOTIFICATION_CHANNEL_INFO);
         } else {
-            builder = new Notification.Builder(getApplicationContext());
+            @SuppressWarnings("deprecation")
+            Notification.Builder localBuilder = new Notification.Builder(getApplicationContext());
+            builder = localBuilder;
         }
         return ((RadarApplication)getApplication()).updateNotificationAppSettings(builder)
                 .setContentIntent(intent)

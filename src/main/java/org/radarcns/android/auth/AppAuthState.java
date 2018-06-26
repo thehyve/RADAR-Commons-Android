@@ -56,6 +56,8 @@ public final class AppAuthState {
     private long expiration;
     private long lastUpdate;
     private final HashMap<String, String> properties;
+
+    @NonNull
     private final ArrayList<Map.Entry<String, String>> headers;
 
     public AppAuthState(@Nullable String userId, @Nullable String token,
@@ -113,7 +115,7 @@ public final class AppAuthState {
         return properties;
     }
 
-    @Nullable
+    @NonNull
     public ArrayList<Map.Entry<String, String>> getHeaders() {
         return headers;
     }

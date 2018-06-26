@@ -649,7 +649,7 @@ public abstract class MainActivity extends Activity {
         latestNumberOfRecordsSent.set(numberOfRecords);
     }
 
-    public void setAllowedDeviceIds(final DeviceServiceConnection connection, Set<String> allowedIds) {
+    public void setAllowedDeviceIds(final DeviceServiceConnection<?> connection, Set<String> allowedIds) {
         deviceFilters.put(connection, allowedIds);
 
         // Do NOT disconnect if input has not changed, is empty or equals the connected device.

@@ -202,10 +202,10 @@ install {
 }
 
 bintray {
-    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
-    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
-    override = false
-    configurations = ['archives']
+    user project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    key project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
+    override false
+    configurations 'archives'
     pkg {
         repo = project.group
         name = moduleName
@@ -225,6 +225,14 @@ bintray {
             gpg {
                 sign = true //Determines whether to GPG sign the files. The default is false
             }
+        }
+    }
+}
+
+allprojects {
+    gradle.projectsEvaluated {
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
         }
     }
 }
