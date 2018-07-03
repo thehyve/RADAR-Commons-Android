@@ -378,11 +378,14 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
             synchronized (this) {
                 if (deviceScanner == null) {
                     deviceScanner = createDeviceManager();
+                    localManager = deviceScanner;
                     deviceScanner.start(acceptableIds);
+                } else {
+                    localManager = deviceScanner;
                 }
             }
         }
-        return getDeviceManager().getState();
+        return localManager.getState();
     }
 
     public void stopRecording() {
