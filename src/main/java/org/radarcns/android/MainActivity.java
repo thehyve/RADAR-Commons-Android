@@ -83,6 +83,7 @@ public abstract class MainActivity extends Activity {
 
     /** Filters to only listen to certain device IDs. */
     private final Map<DeviceServiceConnection, Set<String>> deviceFilters;
+    private boolean receiversAreRegistered;
 
     /** Time between refreshes. */
     private long uiRefreshRate;
@@ -158,13 +159,14 @@ public abstract class MainActivity extends Activity {
                         @Override
                         public void run() {
                             Boast.makeText(MainActivity.this, "Cannot connect to device "
-                                    + intent.getStringExtra(DEVICE_STATUS_NAME),
+                                            + intent.getStringExtra(DEVICE_STATUS_NAME),
                                     Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
             }
         };
+        receiversAreRegistered = false;
 
         latestNumberOfRecordsSent = new TimedInt();
         needsPermissions = new LinkedHashSet<>();
@@ -310,6 +312,7 @@ public abstract class MainActivity extends Activity {
         }
         registerReceiver(bluetoothReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
         registerReceiver(deviceFailedReceiver, new IntentFilter(DEVICE_CONNECT_FAILED));
+        receiversAreRegistered = true;
 
         mHandlerThread = new HandlerThread("Service connection", Process.THREAD_PRIORITY_BACKGROUND);
         mHandlerThread.start();
@@ -341,13 +344,18 @@ public abstract class MainActivity extends Activity {
     protected void onStop() {
         logger.info("mainActivity onStop");
         super.onStop();
-        unregisterReceiver(deviceFailedReceiver);
-        unregisterReceiver(bluetoothReceiver);
+        if (receiversAreRegistered) {
+            unregisterReceiver(deviceFailedReceiver);
+            unregisterReceiver(bluetoothReceiver);
+            receiversAreRegistered = false;
+        }
         synchronized (this) {
             mHandler = null;
             mView = null;
         }
-        mHandlerThread.quitSafely();
+        if (mHandlerThread.isAlive()) {
+            mHandlerThread.quitSafely();
+        }
 
         for (DeviceServiceProvider provider : mConnections) {
             if (provider.isBound()) {
