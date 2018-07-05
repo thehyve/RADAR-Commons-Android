@@ -94,27 +94,7 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
     public static final String DEVICE_STATUS_NAME = PREFIX + "Devicemanager.getName";
     public static final String DEVICE_CONNECT_FAILED = PREFIX + "DeviceStatusListener.deviceFailedToConnect";
 
-    /** Stops the device when bluetooth is disabled. */
-    private final BroadcastReceiver mBluetoothReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-
-            if (Objects.equals(action, BluetoothAdapter.ACTION_STATE_CHANGED)) {
-                final int state = intent.getIntExtra(
-                        BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
-                switch (state) {
-                    case BluetoothAdapter.STATE_TURNING_OFF: case BluetoothAdapter.STATE_OFF:
-                        logger.warn("Bluetooth is off");
-                        stopDeviceManager(unsetDeviceManager());
-                        break;
-                    default:
-                        logger.debug("Bluetooth is in state {}", state);
-                        break;
-                }
-            }
-        }
-    };
+    private BroadcastReceiver mBluetoothReceiver;
 
     private static final Logger logger = LoggerFactory.getLogger(DeviceService.class);
     private TableDataHandler dataHandler;
@@ -135,6 +115,26 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
 
         // Register for broadcasts on BluetoothAdapter state change
         IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        mBluetoothReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                final String action = intent.getAction();
+
+                if (Objects.equals(action, BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                    final int state = intent.getIntExtra(
+                            BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+                    switch (state) {
+                        case BluetoothAdapter.STATE_TURNING_OFF: case BluetoothAdapter.STATE_OFF:
+                            logger.warn("Bluetooth is off");
+                            stopDeviceManager(unsetDeviceManager());
+                            break;
+                        default:
+                            logger.debug("Bluetooth is in state {}", state);
+                            break;
+                    }
+                }
+            }
+        };
         registerReceiver(mBluetoothReceiver, filter);
 
         synchronized (this) {
@@ -150,12 +150,16 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
         logger.info("Destroying DeviceService {}", this);
         super.onDestroy();
         // Unregister broadcast listeners
-        unregisterReceiver(mBluetoothReceiver);
+        if (mBluetoothReceiver != null) {
+            unregisterReceiver(mBluetoothReceiver);
+        }
         stopDeviceManager(unsetDeviceManager());
         ((RadarApplication)getApplicationContext()).onDeviceServiceDestroy(this);
 
         try {
-            dataHandler.close();
+            if (dataHandler != null) {
+                dataHandler.close();
+            }
         } catch (IOException e) {
             // do nothing
         }
