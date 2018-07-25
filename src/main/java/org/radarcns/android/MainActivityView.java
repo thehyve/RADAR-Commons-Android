@@ -21,4 +21,6 @@ public interface MainActivityView {
      * Update the user interface.
      */
     void update();
+
+    void onConfigChanged();
 }

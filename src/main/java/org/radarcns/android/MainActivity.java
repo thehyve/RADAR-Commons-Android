@@ -225,6 +225,7 @@ public abstract class MainActivity extends Activity {
                     // Set global properties.
                     logger.info("RADAR configuration at create: {}", radarConfiguration);
                     onConfigChanged();
+                    onViewConfigChanged();
                 } else {
                     Boast.makeText(MainActivity.this, "Remote Config: Fetch Failed",
                             Toast.LENGTH_SHORT).show();
@@ -264,6 +265,16 @@ public abstract class MainActivity extends Activity {
      * when the configuration is updated from Firebase.
      */
     protected abstract void onConfigChanged();
+
+    protected void onViewConfigChanged() {
+        MainActivityView localView;
+        synchronized (this) {
+            localView = mView;
+        }
+        if (localView != null) {
+            localView.onConfigChanged();
+        }
+    }
 
     /** Create a view to show the data of this activity. */
     protected abstract MainActivityView createView();
@@ -373,12 +384,17 @@ public abstract class MainActivity extends Activity {
             if (resultCode != RESULT_OK) {
                 throw new IllegalStateException("Login should not be cancellable");
             }
-            authState = new AppAuthState(result.getExtras());
+            if (result != null && result.getExtras() != null) {
+                authState = new AppAuthState(result.getExtras());
+            } else {
+                authState = AppAuthState.read(this);
+            }
             radarConfiguration.put(RadarConfiguration.DEFAULT_GROUP_ID_KEY, authState.getUserId());
             onConfigChanged();
             for (DeviceServiceProvider provider : mConnections) {
                 provider.updateConfiguration();
             }
+            onViewConfigChanged();
         } else if (requestCode == LOCATION_REQUEST_CODE || requestCode == USAGE_REQUEST_CODE) {
             checkPermissions();
         }
