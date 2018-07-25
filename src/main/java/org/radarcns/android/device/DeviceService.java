@@ -505,6 +505,8 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
     protected void onInvocation(Bundle bundle) {
         TableDataHandler localDataHandler;
 
+        bundle.setClassLoader(DeviceService.class.getClassLoader());
+
         ServerConfig kafkaConfig = null;
         SchemaRetriever remoteSchemaRetriever = null;
         boolean unsafeConnection = RadarConfiguration.getBooleanExtra(bundle, UNSAFE_KAFKA_CONNECTION, false);

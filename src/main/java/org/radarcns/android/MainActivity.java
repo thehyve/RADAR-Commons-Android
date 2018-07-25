@@ -385,7 +385,9 @@ public abstract class MainActivity extends Activity {
                 throw new IllegalStateException("Login should not be cancellable");
             }
             if (result != null && result.getExtras() != null) {
-                authState = new AppAuthState(result.getExtras());
+                Bundle extras = result.getExtras();
+                extras.setClassLoader(MainActivity.class.getClassLoader());
+                authState = new AppAuthState(extras);
             } else {
                 authState = AppAuthState.read(this);
             }
