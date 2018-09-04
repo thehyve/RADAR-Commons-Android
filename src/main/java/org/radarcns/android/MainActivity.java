@@ -33,13 +33,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Process;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.widget.Toast;
+
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+
 import org.radarcns.android.auth.AppAuthState;
 import org.radarcns.android.auth.LoginActivity;
 import org.radarcns.android.device.DeviceServiceConnection;
@@ -59,6 +62,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
@@ -122,6 +126,7 @@ public abstract class MainActivity extends Activity {
 
     private final LinkedHashSet<String> needsPermissions;
     private boolean requestedBt;
+    private long didShowFetchErrorTime;
 
     public MainActivity() {
         super();
@@ -211,6 +216,8 @@ public abstract class MainActivity extends Activity {
             mConnections = Collections.emptyList();
         }
 
+        didShowFetchErrorTime = 0L;
+
         radarConfiguration.onFetchComplete(this, new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
@@ -227,8 +234,18 @@ public abstract class MainActivity extends Activity {
                     onConfigChanged();
                     onViewConfigChanged();
                 } else {
-                    Boast.makeText(MainActivity.this, "Remote Config: Fetch Failed",
-                            Toast.LENGTH_SHORT).show();
+                    long now = SystemClock.elapsedRealtime();
+                    if (now - didShowFetchErrorTime > TimeUnit.MINUTES.toMillis(20)) {
+                        Boast.makeText(MainActivity.this, "Config update failed",
+                                Toast.LENGTH_SHORT).show();
+                        didShowFetchErrorTime = now;
+                    }
+                    getHandler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            radarConfiguration.fetch();
+                        }
+                    }, TimeUnit.MINUTES.toMillis(5));
                     logger.info("Remote Config: Fetch failed. Stacktrace: {}", task.getException());
                 }
             }
