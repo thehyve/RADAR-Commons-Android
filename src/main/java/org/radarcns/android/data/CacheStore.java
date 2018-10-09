@@ -18,20 +18,32 @@ package org.radarcns.android.data;
 
 import android.content.Context;
 
+import org.apache.avro.Schema;
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.util.AndroidThreadFactory;
 import org.radarcns.android.util.SharedSingleThreadExecutorFactory;
 import org.radarcns.android.util.SingleThreadExecutorFactory;
 import org.radarcns.topic.AvroTopic;
 import org.radarcns.util.CountedReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 
 public class CacheStore {
+    private static final Logger logger = LoggerFactory.getLogger(CacheStore.class);
+
+    private static final String KEY_SCHEMA_EXTENSION = ".key.avsc";
+    private static final String VALUE_SCHEMA_EXTENSION = ".value.avsc";
+
     private static final Object SYNC_OBJECT = new Object();
     private static CacheStore store = null;
 
@@ -65,9 +77,24 @@ public class CacheStore {
         if (ref == null) {
             ref = new CountedReference<DataCache>(
                     new TapeCache<>(context, topic, cacheExecutorFactory));
+
             caches.put(topic.getName(), ref);
+
+            String fileBase = context.getCacheDir().getAbsolutePath() + '/' + topic.getName();
+            writeSchema(topic.getKeySchema(), new File(fileBase + KEY_SCHEMA_EXTENSION));
+            writeSchema(topic.getValueSchema(), new File(fileBase + VALUE_SCHEMA_EXTENSION));
         }
+
         return ref.acquire();
+    }
+
+    private void writeSchema(Schema schema, File file) {
+        try (FileOutputStream out = new FileOutputStream(file);
+             OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+            writer.write(schema.toString(false));
+        } catch (IOException ex) {
+            logger.error("Cannot write schema to {}", file, ex);
+        }
     }
 
     public synchronized <K extends SpecificRecord, V extends SpecificRecord> void releaseCache(DataCache<K, V> cache) throws IOException {
