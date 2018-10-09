@@ -234,18 +234,22 @@ public abstract class MainActivity extends Activity {
                     onConfigChanged();
                     onViewConfigChanged();
                 } else {
-                    long now = SystemClock.elapsedRealtime();
-                    if (now - didShowFetchErrorTime > TimeUnit.MINUTES.toMillis(20)) {
-                        Boast.makeText(MainActivity.this, "Config update failed",
-                                Toast.LENGTH_SHORT).show();
-                        didShowFetchErrorTime = now;
-                    }
-                    getHandler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            radarConfiguration.fetch();
+                    Handler localHandler = getHandler();
+                    if (localHandler != null) {
+                        localHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                radarConfiguration.fetch();
+                            }
+                        }, TimeUnit.MINUTES.toMillis(5));
+
+                        long now = SystemClock.elapsedRealtime();
+                        if (now - didShowFetchErrorTime > TimeUnit.MINUTES.toMillis(20)) {
+                            Boast.makeText(MainActivity.this, "Config update failed",
+                                    Toast.LENGTH_SHORT).show();
+                            didShowFetchErrorTime = now;
                         }
-                    }, TimeUnit.MINUTES.toMillis(5));
+                    }
                     logger.info("Remote Config: Fetch failed. Stacktrace: {}", task.getException());
                 }
             }
@@ -350,20 +354,8 @@ public abstract class MainActivity extends Activity {
         }
         setView(createView());
 
-        new AsyncTask<DeviceServiceProvider, Void, Void>() {
-            @Override
-            protected Void doInBackground(DeviceServiceProvider... params) {
-                for (DeviceServiceProvider provider : params) {
-                    if (!provider.isBound()) {
-                        logger.info("Binding to service: {}", provider);
-                        provider.bind();
-                    } else {
-                        logger.info("Already bound: {}", provider);
-                    }
-                }
-                return null;
-            }
-        }.execute(mConnections.toArray(new DeviceServiceProvider[mConnections.size()]));
+        new ProviderBinderTask()
+                .execute(mConnections.toArray(new DeviceServiceProvider[mConnections.size()]));
 
         radarConfiguration.fetch();
     }
@@ -490,19 +482,7 @@ public abstract class MainActivity extends Activity {
 
     public synchronized void serviceDisconnected(DeviceServiceConnection<?> connection) {
         if (getHandler() != null) {
-            new AsyncTask<DeviceServiceConnection, Void, Void>() {
-                @Override
-                protected Void doInBackground(DeviceServiceConnection... params) {
-                    DeviceServiceProvider provider = getConnectionProvider(params[0]);
-                    logger.info("Rebinding {} after disconnect", provider);
-                    if (provider.isBound()) {
-                        provider.unbind();
-                    }
-                    provider.bind();
-
-                    return null;
-                }
-            }.execute(connection);
+            new ProviderRebindTask().execute(getConnectionProvider(connection));
         }
     }
 
@@ -749,5 +729,34 @@ public abstract class MainActivity extends Activity {
 
     protected synchronized void setView(MainActivityView view) {
         this.mView = view;
+    }
+
+    private static class ProviderBinderTask extends AsyncTask<DeviceServiceProvider, Void, Void> {
+        @Override
+        protected Void doInBackground(DeviceServiceProvider... params) {
+            for (DeviceServiceProvider provider : params) {
+                if (!provider.isBound()) {
+                    logger.info("Binding to service: {}", provider);
+                    provider.bind();
+                } else {
+                    logger.info("Already bound: {}", provider);
+                }
+            }
+            return null;
+        }
+    }
+
+    private static class ProviderRebindTask extends AsyncTask<DeviceServiceProvider, Void, Void> {
+        @Override
+        protected Void doInBackground(DeviceServiceProvider... params) {
+            for (DeviceServiceProvider provider : params) {
+                logger.info("Rebinding {} after disconnect", provider);
+                if (provider.isBound()) {
+                    provider.unbind();
+                }
+                provider.bind();
+            }
+            return null;
+        }
     }
 }
