@@ -4,7 +4,7 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.4'
+        classpath 'com.android.tools.build:gradle:3.2.1'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.1'
         classpath 'com.github.dcendents:android-maven-gradle-plugin:2.0'
     }
@@ -16,7 +16,7 @@ apply plugin: 'com.github.dcendents.android-maven'
 
 android {
     compileSdkVersion 27
-    buildToolsVersion '27.0.3'
+    buildToolsVersion '28.0.3'
 
     defaultConfig {
         minSdkVersion 21
@@ -78,7 +78,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.journeyapps:zxing-android-embedded:3.5.0'
+    implementation 'com.journeyapps:zxing-android-embedded:3.6.0'
     implementation 'com.squareup.okhttp3:okhttp:3.11.0'
     api ('org.apache.avro:avro:1.8.2') {
         exclude group: 'com.thoughtworks.paranamer', module: 'paranamer'
@@ -86,8 +86,7 @@ dependencies {
         exclude group: 'org.apache.commons', module: 'commons-compress'
         exclude group: 'org.tukaani', module: 'xz'
     }
-    // Cannot go to Firebase config 16 because of Google places
-    api 'com.google.firebase:firebase-config:15.0.2'
+    api 'com.google.firebase:firebase-config:16.0.1'
     api ('org.radarcns:radar-commons:0.5') {
         exclude group: 'io.confluent', module: 'kafka-avro-serializer'
         exclude group: 'org.apache.kafka', module: 'kafka-clients'
