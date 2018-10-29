@@ -390,14 +390,14 @@ public abstract class MainActivity extends Activity {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent result) {
         if (requestCode == LOGIN_REQUEST_CODE) {
-            if (resultCode != RESULT_OK) {
-                throw new IllegalStateException("Login should not be cancellable");
-            }
-            if (result != null && result.getExtras() != null) {
+            if (resultCode == RESULT_OK && result != null && result.getExtras() != null) {
                 Bundle extras = result.getExtras();
                 extras.setClassLoader(MainActivity.class.getClassLoader());
                 authState = new AppAuthState(extras);
             } else {
+                if (resultCode != RESULT_OK) {
+                    logger.error("Failed to finish login activity: no OK result.");
+                }
                 authState = AppAuthState.read(this);
             }
             radarConfiguration.put(RadarConfiguration.DEFAULT_GROUP_ID_KEY, authState.getUserId());
