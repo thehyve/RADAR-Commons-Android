@@ -33,7 +33,7 @@ public interface DataCache<K, V> extends Flushable, Closeable {
      *
      * @return records.
      */
-    List<Record<K, V>> unsentRecords(int limit) throws IOException;
+    List<Record<K, V>> unsentRecords(int limit, long sizeLimit) throws IOException;
 
     /**
      * Get latest records in the cache, from new to old.

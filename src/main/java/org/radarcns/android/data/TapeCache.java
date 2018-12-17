@@ -146,14 +146,14 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
     }
 
     @Override
-    public List<Record<K, V>> unsentRecords(final int limit) throws IOException {
+    public List<Record<K, V>> unsentRecords(final int limit, final long sizeLimit) throws IOException {
         logger.info("Trying to retrieve records from topic {}", topic);
         try {
             return listPool.get(executor.submit(new Callable<List<Record<K, V>>>() {
                 @Override
                 public List<Record<K, V>> call() throws Exception {
                     try {
-                        return queue.peek(limit);
+                        return queue.peek(limit, sizeLimit);
                     } catch (IOException | IllegalStateException ex) {
                         fixCorruptQueue();
                         return Collections.emptyList();
@@ -177,7 +177,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
 
     @Override
     public List<Record<K, V>> getRecords(int limit) throws IOException {
-        return unsentRecords(limit);
+        return unsentRecords(limit, 100_000L);
     }
 
     @Override

@@ -94,11 +94,16 @@ public class BackedObjectQueue<T> implements Closeable {
      * @throws IOException if the element could not be read or deserialized
      * @throws IllegalStateException if the element could not be read
      */
-    public List<T> peek(int n) throws IOException {
+    public List<T> peek(int n, long sizeLimit) throws IOException {
         Iterator<InputStream> iter = queueFile.iterator();
+        long size = 0L;
         List<T> results = new ArrayList<>(n);
         for (int i = 0; i < n && iter.hasNext(); i++) {
             try (InputStream in = iter.next()) {
+                size += in.available();
+                if (i > 0 && size >= sizeLimit) {
+                    break;
+                }
                 results.add(converter.deserialize(in));
             }
         }

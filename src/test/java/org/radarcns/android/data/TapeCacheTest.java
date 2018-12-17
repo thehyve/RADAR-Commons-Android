@@ -76,28 +76,28 @@ public class TapeCacheTest {
 
     @Test
     public void addMeasurement() throws Exception {
-        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100));
+        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100, 100_000));
         assertEquals(new Pair<>(0L, 0L), tapeCache.numberOfRecords());
         assertEquals(Collections.emptyList(), tapeCache.getRecords(100));
 
         tapeCache.addMeasurement(key, value);
 
-        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100));
+        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100, 100_000));
         assertEquals(new Pair<>(0L, 0L), tapeCache.numberOfRecords());
 
         Thread.sleep(100);
 
-        List<Record<MeasurementKey, ApplicationUptime>> unsent = tapeCache.unsentRecords(100);
+        List<Record<MeasurementKey, ApplicationUptime>> unsent = tapeCache.unsentRecords(100, 100_000);
         assertEquals(1, unsent.size());
         assertEquals(new Pair<>(1L, 0L), tapeCache.numberOfRecords());
-        unsent = tapeCache.unsentRecords(100);
+        unsent = tapeCache.unsentRecords(100, 100_000);
         assertEquals(1, unsent.size());
         assertEquals(new Pair<>(1L, 0L), tapeCache.numberOfRecords());
         Record<MeasurementKey, ApplicationUptime> record = unsent.get(0);
         assertEquals(key, record.key);
         assertEquals(value, record.value);
         tapeCache.markSent(record.offset);
-        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100));
+        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100, 100_000));
         assertEquals(new Pair<>(0L, 0L), tapeCache.numberOfRecords());
 
         tapeCache.addMeasurement(key, value);
@@ -105,7 +105,7 @@ public class TapeCacheTest {
 
         Thread.sleep(100);
 
-        unsent = tapeCache.unsentRecords(100);
+        unsent = tapeCache.unsentRecords(100, 100_000);
         assertEquals(2, unsent.size());
         assertEquals(new Pair<>(2L, 0L), tapeCache.numberOfRecords());
     }
@@ -130,7 +130,7 @@ public class TapeCacheTest {
 
         localTapeCache.addMeasurement(key, localValue);
         localTapeCache.flush();
-        List<Record<MeasurementKey, ActiveAudioRecording>> records = localTapeCache.unsentRecords(100);
+        List<Record<MeasurementKey, ActiveAudioRecording>> records = localTapeCache.unsentRecords(100, 100_000);
 
         assertEquals(1, records.size());
         Record<MeasurementKey, ActiveAudioRecording> firstRecord = records.get(0);
@@ -140,18 +140,18 @@ public class TapeCacheTest {
 
     @Test
     public void flush() throws Exception {
-        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100));
+        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100, 100_000));
         assertEquals(new Pair<>(0L, 0L), tapeCache.numberOfRecords());
         assertEquals(Collections.emptyList(), tapeCache.getRecords(100));
 
         tapeCache.addMeasurement(key, value);
 
-        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100));
+        assertEquals(Collections.emptyList(), tapeCache.unsentRecords(100, 100_000));
         assertEquals(new Pair<>(0L, 0L), tapeCache.numberOfRecords());
 
         tapeCache.flush();
 
-        assertEquals(1, tapeCache.unsentRecords(100).size());
+        assertEquals(1, tapeCache.unsentRecords(100, 100_000).size());
         assertEquals(new Pair<>(1L, 0L), tapeCache.numberOfRecords());
     }
 }

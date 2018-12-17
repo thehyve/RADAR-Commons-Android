@@ -239,17 +239,20 @@ public class KafkaDataSubmitter<V> implements Closeable {
         try {
             for (Map.Entry<AvroTopic<MeasurementKey, ? extends V>, ? extends DataCache<MeasurementKey, ? extends V>> entry
                     : dataHandler.getCaches().entrySet()) {
-                long unsent = entry.getValue().numberOfRecords().first;
-                if (unsent > currentSendLimit) {
+                @SuppressWarnings("unchecked")
+                DataCache<MeasurementKey, V> cache = (DataCache<MeasurementKey, V>) entry.getValue();
+                if (cache.numberOfRecords().first > currentSendLimit) {
                     //noinspection unchecked
-                    int sent = uploadCache(
-                            (AvroTopic<MeasurementKey, V>) entry.getKey(), (DataCache<MeasurementKey, V>) entry.getValue(),
+                    boolean queueWasEmptied = uploadCache(
+                            (AvroTopic<MeasurementKey, V>) entry.getKey(), cache,
                             currentSendLimit, uploadingNotified);
                     if (!uploadingNotified) {
                         uploadingNotified = true;
                     }
-                    if (!sendAgain && unsent - sent > currentSendLimit && sent != -1) {
-                        sendAgain = true;
+                    if (!queueWasEmptied) {
+                        if (!sendAgain && cache.numberOfRecords().first > currentSendLimit) {
+                            sendAgain = true;
+                        }
                     }
                 }
             }
@@ -273,9 +276,15 @@ public class KafkaDataSubmitter<V> implements Closeable {
         WifiManager wifiManager = (WifiManager)context.getApplicationContext()
                 .getSystemService(Context.WIFI_SERVICE);
 
-        WifiManager.WifiLock mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL,
-                context.getClass().getName());
-        mWifiLock.acquire();
+        WifiManager.WifiLock mWifiLock;
+
+        if (wifiManager != null) {
+            mWifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL,
+                    context.getClass().getName());
+            mWifiLock.acquire();
+        } else {
+            mWifiLock = null;
+        }
 
         boolean uploadingNotified = false;
         int currentSendLimit = sendLimit.get();
@@ -284,12 +293,14 @@ public class KafkaDataSubmitter<V> implements Closeable {
                 if (!toSend.contains(entry.getKey())) {
                     continue;
                 }
+                long unsent = entry.getValue().numberOfRecords().first;
+
                 @SuppressWarnings("unchecked") // we can upload any record
-                int sent = uploadCache((AvroTopic<MeasurementKey, V>)entry.getKey(), (DataCache<MeasurementKey, V>)entry.getValue(), currentSendLimit, uploadingNotified);
-                if (sent < currentSendLimit) {
+                boolean queueWasEmptied = uploadCache((AvroTopic<MeasurementKey, V>)entry.getKey(), (DataCache<MeasurementKey, V>)entry.getValue(), currentSendLimit, uploadingNotified);
+                if (queueWasEmptied) {
                     toSend.remove(entry.getKey());
                 }
-                if (!uploadingNotified && sent > 0) {
+                if (!uploadingNotified && unsent > 0) {
                     uploadingNotified = true;
                 }
             }
@@ -302,17 +313,20 @@ public class KafkaDataSubmitter<V> implements Closeable {
                 connection.didDisconnect(ex);
             }
         } finally {
-            mWifiLock.release();
+            if (mWifiLock != null) {
+                mWifiLock.release();
+            }
         }
     }
 
     /**
      * Upload some data from a single table.
-     * @return number of records sent.
+     * @return true if the queue is now empty, false otherwise
      */
-    private int uploadCache(AvroTopic<MeasurementKey, V> topic, DataCache<MeasurementKey, V> cache, int limit,
+    private boolean uploadCache(AvroTopic<MeasurementKey, V> topic, DataCache<MeasurementKey, V> cache, int limit,
                             boolean uploadingNotified) throws IOException {
-        List<Record<MeasurementKey, V>> unfilteredMeasurements = cache.unsentRecords(limit);
+        long unsentNumberOfRecords = cache.numberOfRecords().first;
+        List<Record<MeasurementKey, V>> unfilteredMeasurements = cache.unsentRecords(limit, 100_000L);
 
         List<Record<MeasurementKey, V>> measurements = listPool.get(Collections
                 .<Record<MeasurementKey,V>>emptyList());
@@ -373,7 +387,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
         }
         cache.returnList(unfilteredMeasurements);
 
-        return totalSize;
+        return totalSize >= unsentNumberOfRecords;
     }
 
     /**

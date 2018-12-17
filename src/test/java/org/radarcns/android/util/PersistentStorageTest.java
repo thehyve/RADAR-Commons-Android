@@ -30,6 +30,7 @@ import static org.junit.Assert.assertEquals;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(constants = BuildConfig.class)
+@SuppressWarnings("deprecation")
 public class PersistentStorageTest {
     private PersistentStorage storage;
 
