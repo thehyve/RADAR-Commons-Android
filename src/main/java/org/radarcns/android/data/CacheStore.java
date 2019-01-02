@@ -19,6 +19,7 @@ package org.radarcns.android.data;
 import android.content.Context;
 
 import org.apache.avro.Schema;
+import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.util.AndroidThreadFactory;
 import org.radarcns.android.util.SharedSingleThreadExecutorFactory;
@@ -46,6 +47,7 @@ public class CacheStore {
 
     private static final Object SYNC_OBJECT = new Object();
     private static CacheStore store = null;
+    private final SpecificData specificData;
 
     public static CacheStore getInstance() {
         synchronized (SYNC_OBJECT) {
@@ -62,6 +64,20 @@ public class CacheStore {
     private CacheStore() {
         caches = new HashMap<>();
         cacheExecutorFactory = null;
+        specificData = new SpecificData(CacheStore.class.getClassLoader()) {
+            @Override
+            protected boolean isFloat(Object object) {
+                return object instanceof Float
+                        && !((Float) object).isNaN()
+                        && !((Float) object).isInfinite();
+            }
+            @Override
+            protected boolean isDouble(Object object) {
+                return object instanceof Double
+                        && !((Double) object).isNaN()
+                        && !((Double) object).isInfinite();
+            }
+        };
     }
 
     @SuppressWarnings("unchecked")
@@ -76,7 +92,7 @@ public class CacheStore {
         CountedReference<DataCache> ref = caches.get(topic.getName());
         if (ref == null) {
             ref = new CountedReference<DataCache>(
-                    new TapeCache<>(context, topic, cacheExecutorFactory));
+                    new TapeCache<>(context, topic, cacheExecutorFactory, specificData));
 
             caches.put(topic.getName(), ref);
 

@@ -18,6 +18,7 @@ package org.radarcns.android.data;
 
 import android.util.Pair;
 
+import org.apache.avro.specific.SpecificData;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,6 +50,7 @@ public class TapeCacheTest {
     private TapeCache<MeasurementKey, ApplicationUptime> tapeCache;
     private MeasurementKey key;
     private ApplicationUptime value;
+    private SpecificData specificData;
 
     @Before
     public void setUp() throws IOException {
@@ -57,9 +59,10 @@ public class TapeCacheTest {
                 MeasurementKey.class, ApplicationUptime.class);
         executorFactory = new SharedSingleThreadExecutorFactory(
                 new AndroidThreadFactory("test", THREAD_PRIORITY_BACKGROUND));
+        specificData = new SpecificData();
         tapeCache = new TapeCache<>(
                 RuntimeEnvironment.application.getApplicationContext(),
-                topic, executorFactory);
+                topic, executorFactory, specificData);
         tapeCache.setMaximumSize(4096);
         tapeCache.setTimeWindow(100);
 
@@ -117,7 +120,7 @@ public class TapeCacheTest {
                 MeasurementKey.class, ActiveAudioRecording.class);
         TapeCache<MeasurementKey, ActiveAudioRecording> localTapeCache = new TapeCache<>(
                 RuntimeEnvironment.application.getApplicationContext(),
-                topic, executorFactory);
+                topic, executorFactory, specificData);
 
         localTapeCache.setMaximumSize(45000000);
         localTapeCache.setTimeWindow(100);

@@ -16,6 +16,8 @@
 
 package org.radarcns.util;
 
+import org.apache.avro.specific.SpecificData;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -39,6 +41,12 @@ public class BackedObjectQueueTest {
 
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
+    private SpecificData specificData;
+
+    @Before
+    public void setUp() {
+        specificData = new SpecificData();
+    }
 
     @Test
     public void testBinaryObject() throws IOException {
@@ -52,7 +60,7 @@ public class BackedObjectQueueTest {
                 MeasurementKey.getClassSchema(), ActiveAudioRecording.getClassSchema(),
                 MeasurementKey.class, ActiveAudioRecording.class);
         try (BackedObjectQueue<Record<MeasurementKey, ActiveAudioRecording>> queue = new BackedObjectQueue<>(
-                QueueFile.newMapped(file, 450000000), new TapeAvroConverter<>(topic))) {
+                QueueFile.newMapped(file, 450000000), new TapeAvroConverter<>(topic, specificData))) {
 
             ByteBuffer buffer = ByteBuffer.wrap(data);
             Record<MeasurementKey, ActiveAudioRecording> record = new Record<>(
@@ -62,7 +70,7 @@ public class BackedObjectQueueTest {
         }
 
         try (BackedObjectQueue<Record<MeasurementKey, ActiveAudioRecording>> queue = new BackedObjectQueue<>(
-                QueueFile.newMapped(file, 450000000), new TapeAvroConverter<>(topic))) {
+                QueueFile.newMapped(file, 450000000), new TapeAvroConverter<>(topic, specificData))) {
             Record<MeasurementKey, ActiveAudioRecording> result = queue.peek();
 
             assertArrayEquals(data, result.value.getData().array());
@@ -79,23 +87,12 @@ public class BackedObjectQueueTest {
 
         BackedObjectQueue<Record<MeasurementKey, MeasurementKey>> queue;
         queue = new BackedObjectQueue<>(
-                QueueFile.newMapped(file, 10000), new TapeAvroConverter<>(topic));
+                QueueFile.newMapped(file, 10000), new TapeAvroConverter<>(topic, specificData));
 
         Record<MeasurementKey, MeasurementKey> record = new Record<>(
                 0L, new MeasurementKey("a", "b"), new MeasurementKey("c", "d"));
 
         queue.add(record);
         queue.peek();
-    }
-
-    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
-    public static String bytesToHex(byte[] bytes, int offset, int count) {
-        char[] hexChars = new char[count * 2];
-        for ( int j = 0; j < count; j++ ) {
-            int v = bytes[j + offset] & 0xFF;
-            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
-            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
-        }
-        return new String(hexChars);
     }
 }

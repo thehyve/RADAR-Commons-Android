@@ -16,12 +16,14 @@
 
 package org.radarcns.android.data;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.data.Record;
 import org.radarcns.topic.AvroTopic;
@@ -39,25 +41,34 @@ public class TapeAvroConverter<K extends SpecificRecord, V extends SpecificRecor
         implements BackedObjectQueue.Converter<Record<K, V>> {
     private final EncoderFactory encoderFactory;
     private final DecoderFactory decoderFactory;
-    private final SpecificDatumWriter<K> keyWriter;
-    private final SpecificDatumWriter<V> valueWriter;
-    private final SpecificDatumReader<K> keyReader;
-    private final SpecificDatumReader<V> valueReader;
+    private final DatumWriter keyWriter;
+    private final DatumWriter valueWriter;
+    private final DatumReader keyReader;
+    private final DatumReader valueReader;
     private final byte[] headerBuffer = new byte[8];
+    private final GenericData specificData;
+    private final Schema keySchema;
+    private final Schema valueSchema;
+    private final String topicName;
     private BinaryEncoder encoder;
     private BinaryDecoder decoder;
 
-    public TapeAvroConverter(AvroTopic<K, V> topic) throws IOException {
+    public TapeAvroConverter(AvroTopic<K, V> topic, GenericData specificData) {
         encoderFactory = EncoderFactory.get();
         decoderFactory = DecoderFactory.get();
-        keyWriter = new SpecificDatumWriter<>(topic.getKeySchema());
-        valueWriter = new SpecificDatumWriter<>(topic.getValueSchema());
-        keyReader = new SpecificDatumReader<>(topic.getKeySchema());
-        valueReader = new SpecificDatumReader<>(topic.getValueSchema());
+        keySchema = topic.getKeySchema();
+        valueSchema = topic.getValueSchema();
+        keyWriter = specificData.createDatumWriter(keySchema);
+        valueWriter = specificData.createDatumWriter(valueSchema);
+        keyReader = specificData.createDatumReader(keySchema);
+        valueReader = specificData.createDatumReader(valueSchema);
+        this.specificData = specificData;
+        topicName = topic.getName();
         encoder = null;
         decoder = null;
     }
 
+    @SuppressWarnings("unchecked")
     public Record<K, V> deserialize(InputStream in) throws IOException {
         int numRead = 0;
         do {
@@ -67,14 +78,22 @@ public class TapeAvroConverter<K extends SpecificRecord, V extends SpecificRecor
 
         long kafkaOffset = QueueFile.bytesToLong(headerBuffer, 0);
         try {
-            K key = keyReader.read(null, decoder);
-            V value = valueReader.read(null, decoder);
+            K key = (K) keyReader.read(null, decoder);
+            V value = (V) valueReader.read(null, decoder);
+
+            if (!specificData.validate(keySchema, key)
+                    || !specificData.validate(valueSchema, value)) {
+                throw new IllegalArgumentException("Failed to validate given record in topic "
+                        + topicName + "\n\tkey: " + key + "\n\tvalue: " + value);
+            }
+
             return new Record<>(kafkaOffset, key, value);
         } catch (RuntimeException ex) {
             throw new IOException("Failed to deserialize object", ex);
         }
     }
 
+    @SuppressWarnings("unchecked")
     public void serialize(Record<K, V> o, OutputStream out) throws IOException {
         QueueFile.longToBytes(o.offset, headerBuffer, 0);
         out.write(headerBuffer, 0, 8);

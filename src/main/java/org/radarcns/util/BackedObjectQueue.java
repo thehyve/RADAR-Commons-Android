@@ -16,6 +16,9 @@
 
 package org.radarcns.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,6 +34,8 @@ import java.util.NoSuchElementException;
  * @param <T> type of objects to store.
  */
 public class BackedObjectQueue<T> implements Closeable {
+    private static final Logger logger = LoggerFactory.getLogger(BackedObjectQueue.class);
+
     private final Converter<T> converter;
     private final QueueFile queueFile;
 
@@ -104,7 +109,12 @@ public class BackedObjectQueue<T> implements Closeable {
                 if (i > 0 && size >= sizeLimit) {
                     break;
                 }
-                results.add(converter.deserialize(in));
+                try {
+                    results.add(converter.deserialize(in));
+                } catch (IllegalStateException ex) {
+                    logger.warn("Invalid record ignored: {}", ex.getMessage());
+                    results.add(null);
+                }
             }
         }
         return results;

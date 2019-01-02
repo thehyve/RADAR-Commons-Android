@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.os.Parcel;
 import android.util.Pair;
 
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.util.SingleThreadExecutorFactory;
 import org.radarcns.data.AvroEncoder;
@@ -85,10 +86,12 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
      * @param topic Kafka Avro topic to write data for.
      * @param executorFactory factory to get a single-threaded {@link ScheduledExecutorService}
      *                        from.
+     * @param specificData converter type
      * @throws IOException if a BackedObjectQueue cannot be created.
      */
     public TapeCache(final Context context, AvroTopic<K, V> topic,
-                     SingleThreadExecutorFactory executorFactory) throws IOException {
+                     SingleThreadExecutorFactory executorFactory,
+                     GenericData specificData) throws IOException {
         this.topic = topic;
         this.timeWindowMillis = 10_000L;
         this.maxBytes = 450_000_000;
@@ -121,7 +124,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
 
         this.measurementsToAdd = new ArrayList<>();
 
-        this.converter = new TapeAvroConverter<>(topic);
+        this.converter = new TapeAvroConverter<>(topic, specificData);
         this.queue = new BackedObjectQueue<>(queueFile, converter);
         this.flusher = new Runnable() {
             @Override
