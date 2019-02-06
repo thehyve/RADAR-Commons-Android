@@ -90,7 +90,11 @@ public final class AppAuthState {
 
     @Nullable
     public String getUserId() {
-        return userId;
+        if (userId == null) {
+            return null;
+        } else {
+            return userId.trim();
+        }
     }
 
     @Nullable
