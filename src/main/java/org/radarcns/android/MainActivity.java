@@ -677,15 +677,18 @@ public abstract class MainActivity extends Activity {
 
         // Do NOT disconnect if input has not changed, is empty or equals the connected device.
         if (connection.hasService() && !connection.isAllowedDevice(allowedIds)) {
-            getHandler().post(new Runnable() {
-                @Override
-                public void run() {
-                    if (connection.isRecording()) {
-                        connection.stopRecording();
-                        // will restart recording once the status is set to disconnected.
+            Handler localHandler = getHandler();
+            if (localHandler != null) {
+                localHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (connection.isRecording()) {
+                            connection.stopRecording();
+                            // will restart recording once the status is set to disconnected.
+                        }
                     }
-                }
-            });
+                });
+            }
         }
     }
 
