@@ -140,7 +140,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
             try {
                 firstInQueue = queue.peek().offset;
             } catch (IOException ex) {
-                fixCorruptQueue();
+                fixCorruptQueue(ex);
                 firstInQueue = 0L;
             }
         }
@@ -158,7 +158,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
                     try {
                         return queue.peek(limit, sizeLimit);
                     } catch (IOException | IllegalStateException ex) {
-                        fixCorruptQueue();
+                        fixCorruptQueue(ex);
                         return Collections.emptyList();
                     }
                 }
@@ -344,8 +344,8 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
         listPool.add(localList);
     }
 
-    private void fixCorruptQueue() throws IOException {
-        logger.error("Queue was corrupted. Removing cache.");
+    private void fixCorruptQueue(Exception ex) throws IOException {
+        logger.error("Queue was corrupted. Removing cache.", ex);
         try {
             queue.close();
         } catch (IOException ioex) {
