@@ -21,6 +21,8 @@ import android.content.Intent;
 import android.os.Parcel;
 import android.util.Pair;
 
+import com.crashlytics.android.Crashlytics;
+
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.util.SingleThreadExecutorFactory;
@@ -346,6 +348,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
 
     private void fixCorruptQueue(Exception ex) throws IOException {
         logger.error("Queue was corrupted. Removing cache.", ex);
+        Crashlytics.logException(ex);
         try {
             queue.close();
         } catch (IOException ioex) {
