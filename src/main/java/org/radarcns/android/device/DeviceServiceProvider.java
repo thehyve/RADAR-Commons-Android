@@ -237,7 +237,8 @@ public abstract class DeviceServiceProvider<T extends BaseDeviceState> {
             try {
                 providerClass = Class.forName(className);
             } catch (ClassNotFoundException ex) {
-                throw new IllegalArgumentException("Class " + className + " not found in classpath", ex);
+                logger.error("Class " + className + " not found in classpath", ex);
+                continue;
             }
             try {
                 DeviceServiceProvider serviceProvider = (DeviceServiceProvider)providerClass.newInstance();
