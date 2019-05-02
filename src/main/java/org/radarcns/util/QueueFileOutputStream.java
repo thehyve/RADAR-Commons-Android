@@ -91,7 +91,7 @@ public class QueueFileOutputStream extends OutputStream {
 
     private void checkConditions() throws IOException {
         if (closed || storage.isClosed()) {
-            throw new IOException("closed");
+            throw new QueueClosedIOException();
         }
     }
 

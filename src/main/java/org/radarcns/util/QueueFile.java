@@ -242,7 +242,7 @@ public final class QueueFile implements Closeable, Iterable<InputStream> {
         @Override
         public boolean hasNext() {
             if (storage.isClosed()) {
-                throw new IllegalStateException("closed");
+                throw new QueueClosedException();
             }
             checkForComodification();
             return nextElementIndex != header.getCount();
@@ -251,7 +251,7 @@ public final class QueueFile implements Closeable, Iterable<InputStream> {
         @Override
         public InputStream next() {
             if (storage.isClosed()) {
-                throw new IllegalStateException("closed");
+                throw new QueueClosedException();
             }
             checkForComodification();
             if (nextElementIndex >= header.getCount()) {
@@ -405,7 +405,7 @@ public final class QueueFile implements Closeable, Iterable<InputStream> {
 
     private void requireNotClosed() throws IOException {
         if (storage.isClosed()) {
-            throw new IOException("closed");
+            throw new QueueClosedIOException();
         }
     }
 

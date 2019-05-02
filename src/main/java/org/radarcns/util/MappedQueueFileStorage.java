@@ -189,7 +189,7 @@ public class MappedQueueFileStorage implements QueueStorage {
 
     private void requireNotClosed() throws IOException {
         if (closed) {
-            throw new IOException("closed");
+            throw new QueueClosedIOException();
         }
     }
 

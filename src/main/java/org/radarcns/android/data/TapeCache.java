@@ -32,6 +32,8 @@ import org.radarcns.data.SpecificRecordEncoder;
 import org.radarcns.topic.AvroTopic;
 import org.radarcns.util.BackedObjectQueue;
 import org.radarcns.util.ListPool;
+import org.radarcns.util.QueueClosedException;
+import org.radarcns.util.QueueClosedIOException;
 import org.radarcns.util.QueueFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -159,10 +162,15 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
                 public List<Record<K, V>> call() throws Exception {
                     try {
                         return queue.peek(limit, sizeLimit);
-                    } catch (IOException | IllegalStateException ex) {
+                    } catch (QueueClosedIOException | QueueClosedException ex) {
+                        // do not handle
+                    } catch (ConcurrentModificationException ex) {
+                        Crashlytics.logException(ex);
+                    } catch (IOException ex) {
                         fixCorruptQueue(ex);
-                        return Collections.emptyList();
                     }
+                    // common error path
+                    return Collections.emptyList();
                 }
             }).get());
         } catch (InterruptedException ex) {
