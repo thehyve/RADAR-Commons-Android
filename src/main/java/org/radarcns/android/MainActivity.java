@@ -672,17 +672,21 @@ public abstract class MainActivity extends Activity {
         latestNumberOfRecordsSent.set(numberOfRecords);
     }
 
-    public void setAllowedDeviceIds(final DeviceServiceConnection<?> connection, Set<String> allowedIds) {
+    public void setAllowedDeviceIds(final DeviceServiceConnection<?> connection, final Set<String> allowedIds) {
         deviceFilters.put(connection, allowedIds);
 
         // Do NOT disconnect if input has not changed, is empty or equals the connected device.
-        if (connection.hasService() && !connection.isAllowedDevice(allowedIds)) {
+        if (connection.hasService()) {
             Handler localHandler = getHandler();
             if (localHandler != null) {
                 localHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        if (connection.isRecording()) {
+                        DeviceStatusListener.Status status = connection.getDeviceStatus();
+                        boolean incompatibleConnection = (status == DeviceStatusListener.Status.CONNECTING || status == DeviceStatusListener.Status.CONNECTED) && !connection.isAllowedDevice(allowedIds);
+                        boolean widerScanningRange = status == DeviceStatusListener.Status.READY;
+
+                        if (incompatibleConnection || widerScanningRange) {
                             connection.stopRecording();
                             // will restart recording once the status is set to disconnected.
                         }
