@@ -61,6 +61,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -77,6 +78,7 @@ import static org.radarcns.android.device.DeviceService.DEVICE_STATUS_NAME;
 
 /** Base MainActivity class. It manages the services to collect the data and starts up a view. To
  * create an application, extend this class and override the abstract methods. */
+@SuppressWarnings("unused")
 public abstract class MainActivity extends Activity {
     private static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
 
@@ -141,7 +143,7 @@ public abstract class MainActivity extends Activity {
             public void onReceive(Context context, Intent intent) {
                 final String action = intent.getAction();
 
-                if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                if (Objects.equals(action, BluetoothAdapter.ACTION_STATE_CHANGED)) {
                     final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                     logger.info("Bluetooth state {}", state);
                     // Upon state change, restart ui handler and restart Scanning.
@@ -159,7 +161,7 @@ public abstract class MainActivity extends Activity {
         deviceFailedReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, final Intent intent) {
-                if (intent.getAction().equals(DEVICE_CONNECT_FAILED)) {
+                if (Objects.equals(intent.getAction(), DEVICE_CONNECT_FAILED)) {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -355,7 +357,7 @@ public abstract class MainActivity extends Activity {
         setView(createView());
 
         new ProviderBinderTask()
-                .execute(mConnections.toArray(new DeviceServiceProvider[mConnections.size()]));
+                .execute(mConnections.toArray(new DeviceServiceProvider[0]));
 
         radarConfiguration.fetch();
     }
@@ -449,7 +451,8 @@ public abstract class MainActivity extends Activity {
             }
 
             logger.info("Starting recording on connection {}", connection);
-            connection.startRecording(deviceFilters.get(connection));
+            Set<String> filters = deviceFilters.get(connection);
+            connection.startRecording(filters == null ? Collections.<String>emptySet() : filters);
         }
     }
 
@@ -522,7 +525,9 @@ public abstract class MainActivity extends Activity {
      */
     protected boolean requestEnableBt() {
         BluetoothAdapter btAdaptor = BluetoothAdapter.getDefaultAdapter();
-        if (!btAdaptor.isEnabled()) {
+        if (btAdaptor == null) {
+            return true;
+        } else if (!btAdaptor.isEnabled()) {
             Intent btIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             btIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getApplicationContext().startActivity(btIntent);
@@ -537,8 +542,7 @@ public abstract class MainActivity extends Activity {
     }
 
     protected void checkPermissions() {
-        List<String> permissions = new ArrayList<>();
-        permissions.addAll(getActivityPermissions());
+        List<String> permissions = new ArrayList<>(getActivityPermissions());
         for (DeviceServiceProvider<?> provider : mConnections) {
             permissions.addAll(provider.needsPermissions());
         }
@@ -548,6 +552,9 @@ public abstract class MainActivity extends Activity {
         for (String permission : permissions) {
             if (permission.equals(ACCESS_FINE_LOCATION) || permission.equals(ACCESS_COARSE_LOCATION)) {
                 LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                if (locationManager == null) {
+                    continue;
+                }
                 boolean isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
                 boolean isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
 
@@ -560,6 +567,9 @@ public abstract class MainActivity extends Activity {
 
             if (permission.equals(PACKAGE_USAGE_STATS)) {
                 AppOpsManager appOps = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+                if (appOps == null) {
+                    continue;
+                }
                 int mode = appOps.checkOpNoThrow(
                         "android:get_usage_stats", android.os.Process.myUid(), getPackageName());
 
@@ -579,7 +589,7 @@ public abstract class MainActivity extends Activity {
             requestPackageUsageStats();
         } else if (!needsPermissions.isEmpty()) {
             ActivityCompat.requestPermissions(this,
-                    needsPermissions.toArray(new String[needsPermissions.size()]),
+                    needsPermissions.toArray(new String[0]),
                     REQUEST_ENABLE_PERMISSIONS);
         }
     }
@@ -666,7 +676,10 @@ public abstract class MainActivity extends Activity {
     public void updateServerRecordsSent(DeviceServiceConnection<?> connection, String topic,
                                         int numberOfRecords) {
         if (numberOfRecords >= 0){
-            mTotalRecordsSent.get(connection).add(numberOfRecords);
+            TimedInt conn = mTotalRecordsSent.get(connection);
+            if (conn != null) {
+                conn.add(numberOfRecords);
+            }
         }
         latestTopicSent = topic;
         latestNumberOfRecordsSent.set(numberOfRecords);
