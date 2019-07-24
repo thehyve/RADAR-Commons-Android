@@ -757,7 +757,11 @@ public abstract class MainActivity extends Activity {
             for (DeviceServiceProvider provider : params) {
                 if (!provider.isBound()) {
                     logger.info("Binding to service: {}", provider);
-                    provider.bind();
+                    try {
+                        provider.bind();
+                    } catch (IllegalStateException ex) {
+                        logger.error("Failed to bind to service in background: {}", ex.toString());
+                    }
                 } else {
                     logger.info("Already bound: {}", provider);
                 }
@@ -774,7 +778,11 @@ public abstract class MainActivity extends Activity {
                 if (provider.isBound()) {
                     provider.unbind();
                 }
-                provider.bind();
+                try {
+                    provider.bind();
+                } catch (IllegalStateException ex) {
+                    logger.error("Failed to bind to service in background: {}", ex.toString());
+                }
             }
             return null;
         }
