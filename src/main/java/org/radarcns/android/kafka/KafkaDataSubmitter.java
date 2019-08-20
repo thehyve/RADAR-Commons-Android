@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 
@@ -70,11 +71,12 @@ public class KafkaDataSubmitter<V> implements Closeable {
     /** Upload rate in milliseconds. */
     private long uploadRate;
     private String userId;
+    private final AtomicLong sizeLimit;
 
     public KafkaDataSubmitter(@NonNull Context context,
             @NonNull DataHandler<MeasurementKey, V> dataHandler,
             @NonNull KafkaSender<MeasurementKey, V> sender, int sendLimit, long uploadRate,
-            String userId) {
+            String userId, long sizeLimit) {
         this.dataHandler = dataHandler;
         this.sender = sender;
         this.userId = userId;
@@ -82,6 +84,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
         trySendFuture = new HashMap<>();
         topicSenders = new HashMap<>();
         this.sendLimit = new AtomicInteger(sendLimit);
+        this.sizeLimit = new AtomicLong(sizeLimit);
         this.context = context;
 
         mHandlerThread = new HandlerThread("data-submitter", THREAD_PRIORITY_BACKGROUND);
@@ -173,6 +176,10 @@ public class KafkaDataSubmitter<V> implements Closeable {
         sendLimit.set(limit);
     }
 
+    public void setSizeLimit(long limit) {
+        sizeLimit.set(limit);
+    }
+
     /**
      * Close the submitter eventually. This does not flush any caches.
      */
@@ -234,6 +241,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
     private boolean uploadCachesIfNeeded() {
         boolean uploadingNotified = false;
         int currentSendLimit = sendLimit.get();
+        long currentSizeLimit = sizeLimit.get();
         boolean sendAgain = false;
 
         try {
@@ -245,7 +253,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
                     //noinspection unchecked
                     boolean queueWasEmptied = uploadCache(
                             (AvroTopic<MeasurementKey, V>) entry.getKey(), cache,
-                            currentSendLimit, uploadingNotified);
+                            currentSendLimit, currentSizeLimit, uploadingNotified);
                     if (!uploadingNotified) {
                         uploadingNotified = true;
                     }
@@ -288,6 +296,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
 
         boolean uploadingNotified = false;
         int currentSendLimit = sendLimit.get();
+        long currentSizeLimit = sizeLimit.get();
         try {
             for (Map.Entry<AvroTopic<MeasurementKey, ? extends V>, ? extends DataCache<MeasurementKey, ? extends V>> entry : dataHandler.getCaches().entrySet()) {
                 if (!toSend.contains(entry.getKey())) {
@@ -296,7 +305,7 @@ public class KafkaDataSubmitter<V> implements Closeable {
                 long unsent = entry.getValue().numberOfRecords().first;
 
                 @SuppressWarnings("unchecked") // we can upload any record
-                boolean queueWasEmptied = uploadCache((AvroTopic<MeasurementKey, V>)entry.getKey(), (DataCache<MeasurementKey, V>)entry.getValue(), currentSendLimit, uploadingNotified);
+                boolean queueWasEmptied = uploadCache((AvroTopic<MeasurementKey, V>)entry.getKey(), (DataCache<MeasurementKey, V>)entry.getValue(), currentSendLimit, currentSizeLimit, uploadingNotified);
                 if (queueWasEmptied) {
                     toSend.remove(entry.getKey());
                 }
@@ -324,9 +333,9 @@ public class KafkaDataSubmitter<V> implements Closeable {
      * @return true if the queue is now empty, false otherwise
      */
     private boolean uploadCache(AvroTopic<MeasurementKey, V> topic, DataCache<MeasurementKey, V> cache, int limit,
-                            boolean uploadingNotified) throws IOException {
+                                long currentSizeLimit, boolean uploadingNotified) throws IOException {
         long unsentNumberOfRecords = cache.numberOfRecords().first;
-        List<Record<MeasurementKey, V>> unfilteredMeasurements = cache.unsentRecords(limit, 100_000L);
+        List<Record<MeasurementKey, V>> unfilteredMeasurements = cache.unsentRecords(limit, currentSizeLimit);
 
         List<Record<MeasurementKey, V>> measurements = listPool.get(Collections
                 .<Record<MeasurementKey,V>>emptyList());

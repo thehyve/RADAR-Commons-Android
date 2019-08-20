@@ -19,12 +19,17 @@ package org.radarcns.android.data;
 import android.content.Context;
 import android.os.Process;
 import android.support.annotation.NonNull;
-import okhttp3.Headers;
+
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.auth.AppAuthState;
 import org.radarcns.android.kafka.KafkaDataSubmitter;
 import org.radarcns.android.kafka.ServerStatusListener;
-import org.radarcns.android.util.*;
+import org.radarcns.android.util.AndroidThreadFactory;
+import org.radarcns.android.util.AtomicFloat;
+import org.radarcns.android.util.BatteryLevelReceiver;
+import org.radarcns.android.util.NetworkConnectedReceiver;
+import org.radarcns.android.util.SharedSingleThreadExecutorFactory;
+import org.radarcns.android.util.SingleThreadExecutorFactory;
 import org.radarcns.config.ServerConfig;
 import org.radarcns.data.SpecificRecordEncoder;
 import org.radarcns.key.MeasurementKey;
@@ -35,10 +40,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
+import okhttp3.Headers;
 
 /**
  * Stores data in databases and sends it to the server.
@@ -47,6 +61,7 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
     private static final Logger logger = LoggerFactory.getLogger(TableDataHandler.class);
 
     public static final long DATA_RETENTION_DEFAULT = 86400000L;
+    public static final long SIZE_LIMIT_DEFAULT = 100_000L;
     public static final int SEND_LIMIT_DEFAULT = 1000;
     public static final long UPLOAD_RATE_DEFAULT = 10L;
     public static final long SENDER_CONNECTION_TIMEOUT_DEFAULT = 10L;
@@ -60,6 +75,7 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
     private final NetworkConnectedReceiver networkConnectedReceiver;
     private final AtomicBoolean sendOnlyWithWifi;
     private final Context context;
+    private long sendSizeLimit;
     private AppAuthState authState;
     private ServerConfig kafkaConfig;
     private SchemaRetriever schemaRetriever;
@@ -97,6 +113,7 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
         this.sendOnlyWithWifi = new AtomicBoolean(sendOnlyWithWifi);
         this.useCompression = false;
         this.authState = authState;
+        this.sendSizeLimit = SIZE_LIMIT_DEFAULT;
 
         tables = new HashMap<>(topics.size() * 2);
         for (AvroTopic<MeasurementKey, ? extends SpecificRecord> topic : topics) {
@@ -157,7 +174,7 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
                 .headers(authState.getHeaders())
                 .build();
         this.submitter = new KafkaDataSubmitter<>(context, this, sender, kafkaRecordsSendLimit,
-                getPreferredUploadRate(), authState.getUserId());
+                getPreferredUploadRate(), authState.getUserId(), sendSizeLimit);
     }
 
     public synchronized boolean isStarted() {
@@ -370,6 +387,13 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
         this.kafkaRecordsSendLimit = kafkaRecordsSendLimit;
     }
 
+    public synchronized void setKafkaSendSizeLimit(long limit) {
+        if (submitter != null) {
+            submitter.setSizeLimit(limit);
+        }
+        this.sendSizeLimit = limit;
+    }
+
     public synchronized void setKafkaUploadRate(long kafkaUploadRate) {
         this.kafkaUploadRate = kafkaUploadRate;
         updateUploadRate();
@@ -380,10 +404,8 @@ public class TableDataHandler implements DataHandler<MeasurementKey, SpecificRec
         if (sender != null) {
             ArrayList<Map.Entry<String, String>> authHeaders = authState.getHeaders();
             Headers.Builder builder = new Headers.Builder();
-            if (authHeaders != null) {
-                for (Map.Entry<String, String> header : authHeaders) {
-                    builder.add(header.getKey(), header.getValue());
-                }
+            for (Map.Entry<String, String> header : authHeaders) {
+                builder.add(header.getKey(), header.getValue());
             }
             sender.setHeaders(builder.build());
         }

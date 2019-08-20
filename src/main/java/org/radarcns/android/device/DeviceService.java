@@ -65,6 +65,7 @@ import static org.radarcns.android.RadarConfiguration.DATA_RETENTION_KEY;
 import static org.radarcns.android.RadarConfiguration.DEFAULT_GROUP_ID_KEY;
 import static org.radarcns.android.RadarConfiguration.KAFKA_RECORDS_SEND_LIMIT_KEY;
 import static org.radarcns.android.RadarConfiguration.KAFKA_REST_PROXY_URL_KEY;
+import static org.radarcns.android.RadarConfiguration.KAFKA_SIZE_LIMIT_KEY;
 import static org.radarcns.android.RadarConfiguration.KAFKA_UPLOAD_MINIMUM_BATTERY_LEVEL;
 import static org.radarcns.android.RadarConfiguration.KAFKA_UPLOAD_RATE_KEY;
 import static org.radarcns.android.RadarConfiguration.MAX_CACHE_SIZE;
@@ -578,6 +579,11 @@ public abstract class DeviceService extends Service implements DeviceStatusListe
             localDataHandler.setKafkaRecordsSendLimit(
                     RadarConfiguration.getIntExtra(bundle, KAFKA_RECORDS_SEND_LIMIT_KEY));
         }
+        if (RadarConfiguration.hasExtra(bundle, KAFKA_SIZE_LIMIT_KEY)) {
+            localDataHandler.setKafkaSendSizeLimit(
+                    RadarConfiguration.getLongExtra(bundle, KAFKA_SIZE_LIMIT_KEY));
+        }
+
         if (RadarConfiguration.hasExtra(bundle, SENDER_CONNECTION_TIMEOUT_KEY)) {
             localDataHandler.setSenderConnectionTimeout(
                     RadarConfiguration.getLongExtra(bundle, SENDER_CONNECTION_TIMEOUT_KEY));
