@@ -775,10 +775,10 @@ public abstract class MainActivity extends Activity {
         protected Void doInBackground(DeviceServiceProvider... params) {
             for (DeviceServiceProvider provider : params) {
                 logger.info("Rebinding {} after disconnect", provider);
-                if (provider.isBound()) {
-                    provider.unbind();
-                }
                 try {
+                    if (provider.isBound()) {
+                        provider.unbind();
+                    }
                     provider.bind();
                 } catch (IllegalStateException ex) {
                     logger.error("Failed to bind to service in background: {}", ex.toString());
