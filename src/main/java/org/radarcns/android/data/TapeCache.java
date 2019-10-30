@@ -349,7 +349,9 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
             logger.error("Failed to add record", ex);
             Crashlytics.logException(ex);
             queueSize.set(queue.size());
-            throw new RuntimeException(ex);
+        } catch (IllegalArgumentException ex) {
+            logger.error("Tried to expand beyond maximum file size", ex);
+            Crashlytics.logException(ex);
         }
 
         listPool.add(localList);
