@@ -347,6 +347,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
             queueSize.addAndGet(localList.size());
         } catch (IOException ex) {
             logger.error("Failed to add record", ex);
+            Crashlytics.logException(ex);
             queueSize.set(queue.size());
             throw new RuntimeException(ex);
         }
