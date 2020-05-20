@@ -40,7 +40,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.widget.Toast;
 
-import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
 import org.radarcns.android.auth.AppAuthState;
@@ -58,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -129,6 +129,7 @@ public abstract class MainActivity extends Activity {
     private final LinkedHashSet<String> needsPermissions;
     private boolean requestedBt;
     private long didShowFetchErrorTime;
+    private String previousConfiguration = null;
 
     public MainActivity() {
         super();
@@ -201,6 +202,8 @@ public abstract class MainActivity extends Activity {
             finish();
             return;
         }
+
+        radarConfiguration.onFetchComplete(this, this::onConfigFetchComplete);
         radarConfiguration.put(RadarConfiguration.DEFAULT_GROUP_ID_KEY, authState.getUserId());
 
         onConfigChanged();
@@ -220,42 +223,6 @@ public abstract class MainActivity extends Activity {
 
         didShowFetchErrorTime = 0L;
 
-        radarConfiguration.onFetchComplete(this, new OnCompleteListener<Void>() {
-            @Override
-            public void onComplete(@NonNull Task<Void> task) {
-                if (task.isSuccessful()) {
-                    // Once the config is successfully fetched it must be
-                    // activated before newly fetched values are returned.
-                    radarConfiguration.activateFetched();
-                    for (DeviceServiceProvider provider : mConnections) {
-                        provider.updateConfiguration();
-                    }
-                    logger.info("Remote Config: Activate success.");
-                    // Set global properties.
-                    logger.info("RADAR configuration at create: {}", radarConfiguration);
-                    onConfigChanged();
-                    onViewConfigChanged();
-                } else {
-                    Handler localHandler = getHandler();
-                    if (localHandler != null) {
-                        localHandler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                radarConfiguration.fetch();
-                            }
-                        }, TimeUnit.MINUTES.toMillis(5));
-
-                        long now = SystemClock.elapsedRealtime();
-                        if (now - didShowFetchErrorTime > TimeUnit.MINUTES.toMillis(20)) {
-                            Boast.makeText(MainActivity.this, "Config update failed",
-                                    Toast.LENGTH_SHORT).show();
-                            didShowFetchErrorTime = now;
-                        }
-                    }
-                    logger.info("Remote Config: Fetch failed. Stacktrace: {}", task.getException());
-                }
-            }
-        });
 
         // Start the UI thread
         uiRefreshRate = radarConfiguration.getLong(RadarConfiguration.UI_REFRESH_RATE_KEY);
@@ -281,6 +248,89 @@ public abstract class MainActivity extends Activity {
         };
 
         checkPermissions();
+    }
+
+    private void onConfigFetchComplete(@NonNull Task<Void> task) {
+        if (task.isSuccessful()) {
+            // Once the config is successfully fetched it must be
+            // activated before newly fetched values are returned.
+            radarConfiguration.activateFetched();
+            String newConfigString = radarConfiguration.toString();
+            if (Objects.equals(newConfigString, previousConfiguration)) {
+                logger.info("Config unchanged, not updating");
+                return;
+            }
+            List<DeviceServiceProvider> newConnections = DeviceServiceProvider.loadProviders(MainActivity.this, radarConfiguration);
+
+            Iterator<DeviceServiceProvider> iter = mConnections.iterator();
+            boolean didRemove = false;
+            while (iter.hasNext()) {
+                DeviceServiceProvider provider = iter.next();
+                boolean didContain = false;
+                Iterator<DeviceServiceProvider> newIter = newConnections.iterator();
+                while (newIter.hasNext()) {
+                    if (newIter.next().getClass() == provider.getClass()) {
+                        newIter.remove();
+                        didContain = true;
+                    }
+                }
+                if (didContain) {
+                    provider.updateConfiguration();
+                } else {
+                    if (provider.isBound()) {
+                        provider.unbind();
+                    }
+                    iter.remove();
+                    didRemove = true;
+                }
+            }
+
+            if (!newConnections.isEmpty()) {
+                for (DeviceServiceProvider provider : newConnections) {
+                    DeviceServiceConnection connection = provider.getConnection();
+                    mTotalRecordsSent.put(connection, new TimedInt());
+                    deviceFilters.put(connection, Collections.<String>emptySet());
+                    mConnections.add(provider);
+                }
+
+                new ProviderBinderTask()
+                        .execute(newConnections.toArray(new DeviceServiceProvider[0]));
+            }
+
+            if (didRemove || !newConnections.isEmpty()) {
+                try {
+                    logger.info("Recreating view");
+                    setView(createView());
+                } catch (Exception ex) {
+                    logger.error("Cannot create view", ex);
+                }
+            }
+
+            logger.info("Remote Config: Activate success.");
+            // Set global properties.
+            logger.info("RADAR configuration: {}", newConfigString);
+            previousConfiguration = newConfigString;
+            onConfigChanged();
+            onViewConfigChanged();
+        } else {
+            Handler localHandler = getHandler();
+            if (localHandler != null) {
+                localHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        radarConfiguration.fetch();
+                    }
+                }, TimeUnit.MINUTES.toMillis(5));
+
+                long now = SystemClock.elapsedRealtime();
+                if (now - didShowFetchErrorTime > TimeUnit.MINUTES.toMillis(20)) {
+                    Boast.makeText(MainActivity.this, "Config update failed",
+                            Toast.LENGTH_SHORT).show();
+                    didShowFetchErrorTime = now;
+                }
+            }
+            logger.info("Remote Config: Fetch failed.", task.getException());
+        }
     }
 
     /**
@@ -409,6 +459,8 @@ public abstract class MainActivity extends Activity {
             }
             onViewConfigChanged();
         } else if (requestCode == LOCATION_REQUEST_CODE || requestCode == USAGE_REQUEST_CODE) {
+            // Ensure that the view is updated after any UI blocks from permission requests
+            onViewConfigChanged();
             checkPermissions();
         }
     }
@@ -645,6 +697,8 @@ public abstract class MainActivity extends Activity {
             }
             // Permission granted.
             startScanning();
+            // Ensure that the view is updated after any UI blocks from permission requests
+            onViewConfigChanged();
         }
     }
 
