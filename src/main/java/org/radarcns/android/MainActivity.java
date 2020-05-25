@@ -210,15 +210,20 @@ public abstract class MainActivity extends Activity {
         logger.info("RADAR configuration at create: {}", radarConfiguration);
 
         try {
-            mConnections = DeviceServiceProvider.loadProviders(this, radarConfiguration);
-            for (DeviceServiceProvider provider : mConnections) {
+            List<DeviceServiceProvider> updatedConnections = DeviceServiceProvider.loadProviders(this, radarConfiguration);
+            synchronized (this) {
+                mConnections = Collections.unmodifiableList(updatedConnections);
+            }
+            for (DeviceServiceProvider provider : updatedConnections) {
                 DeviceServiceConnection connection = provider.getConnection();
                 mTotalRecordsSent.put(connection, new TimedInt());
                 deviceFilters.put(connection, Collections.<String>emptySet());
             }
         } catch (IllegalArgumentException ex) {
             logger.error("Cannot instantiate device provider, waiting to fetch to complete", ex);
-            mConnections = Collections.emptyList();
+            synchronized (this) {
+                mConnections = Collections.emptyList();
+            }
         }
 
         didShowFetchErrorTime = 0L;
@@ -261,9 +266,10 @@ public abstract class MainActivity extends Activity {
                 return;
             }
             List<DeviceServiceProvider> newConnections = DeviceServiceProvider.loadProviders(MainActivity.this, radarConfiguration);
+            List<DeviceServiceProvider> updatedConnections = new ArrayList<>(getConnections());
 
-            Iterator<DeviceServiceProvider> iter = mConnections.iterator();
             boolean didRemove = false;
+            Iterator<DeviceServiceProvider> iter = updatedConnections.iterator();
             while (iter.hasNext()) {
                 DeviceServiceProvider provider = iter.next();
                 boolean didContain = false;
@@ -286,11 +292,13 @@ public abstract class MainActivity extends Activity {
             }
 
             if (!newConnections.isEmpty()) {
-                for (DeviceServiceProvider provider : newConnections) {
-                    DeviceServiceConnection connection = provider.getConnection();
-                    mTotalRecordsSent.put(connection, new TimedInt());
-                    deviceFilters.put(connection, Collections.<String>emptySet());
-                    mConnections.add(provider);
+                synchronized (this) {
+                    for (DeviceServiceProvider provider : newConnections) {
+                        DeviceServiceConnection connection = provider.getConnection();
+                        mTotalRecordsSent.put(connection, new TimedInt());
+                        deviceFilters.put(connection, Collections.<String>emptySet());
+                        updatedConnections.add(provider);
+                    }
                 }
 
                 new ProviderBinderTask()
@@ -298,6 +306,9 @@ public abstract class MainActivity extends Activity {
             }
 
             if (didRemove || !newConnections.isEmpty()) {
+                synchronized (this) {
+                    mConnections = Collections.unmodifiableList(updatedConnections);
+                }
                 try {
                     logger.info("Recreating view");
                     setView(createView());
@@ -407,7 +418,7 @@ public abstract class MainActivity extends Activity {
         setView(createView());
 
         new ProviderBinderTask()
-                .execute(mConnections.toArray(new DeviceServiceProvider[0]));
+                .execute(getConnections().toArray(new DeviceServiceProvider[0]));
 
         radarConfiguration.fetch();
     }
@@ -429,7 +440,7 @@ public abstract class MainActivity extends Activity {
             mHandlerThread.quitSafely();
         }
 
-        for (DeviceServiceProvider provider : mConnections) {
+        for (DeviceServiceProvider provider : getConnections()) {
             if (provider.isBound()) {
                 logger.info("Unbinding service: {}", provider);
                 provider.unbind();
@@ -454,7 +465,7 @@ public abstract class MainActivity extends Activity {
             }
             radarConfiguration.put(RadarConfiguration.DEFAULT_GROUP_ID_KEY, authState.getUserId());
             onConfigChanged();
-            for (DeviceServiceProvider provider : mConnections) {
+            for (DeviceServiceProvider provider : getConnections()) {
                 provider.updateConfiguration();
             }
             onViewConfigChanged();
@@ -472,7 +483,7 @@ public abstract class MainActivity extends Activity {
 
     /** Disconnect from all services. */
     protected void disconnect() {
-        for (DeviceServiceProvider provider : mConnections) {
+        for (DeviceServiceProvider provider : getConnections()) {
             disconnect(provider.getConnection());
         }
     }
@@ -492,7 +503,7 @@ public abstract class MainActivity extends Activity {
             return;
         }
         requestedBt = false;
-        for (DeviceServiceProvider<?> provider : mConnections) {
+        for (DeviceServiceProvider<?> provider : getConnections()) {
             DeviceServiceConnection<?> connection = provider.getConnection();
 
             if (!checkPermissions(provider)
@@ -595,7 +606,7 @@ public abstract class MainActivity extends Activity {
 
     protected void checkPermissions() {
         List<String> permissions = new ArrayList<>(getActivityPermissions());
-        for (DeviceServiceProvider<?> provider : mConnections) {
+        for (DeviceServiceProvider<?> provider : getConnections()) {
             permissions.addAll(provider.needsPermissions());
         }
 
@@ -764,7 +775,7 @@ public abstract class MainActivity extends Activity {
     }
 
     protected DeviceServiceProvider getConnectionProvider(DeviceServiceConnection<?> connection) {
-        for (DeviceServiceProvider provider : mConnections) {
+        for (DeviceServiceProvider provider : getConnections()) {
             if (provider.getConnection().equals(connection)) {
                 return provider;
             }
@@ -789,8 +800,8 @@ public abstract class MainActivity extends Activity {
         return latestNumberOfRecordsSent;
     }
 
-    public List<DeviceServiceProvider> getConnections() {
-        return Collections.unmodifiableList(mConnections);
+    public synchronized List<DeviceServiceProvider> getConnections() {
+        return mConnections;
     }
 
     public RadarConfiguration getRadarConfiguration() {
