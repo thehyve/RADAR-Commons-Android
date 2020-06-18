@@ -315,6 +315,7 @@ public abstract class MainActivity extends Activity {
                 } catch (Exception ex) {
                     logger.error("Cannot create view", ex);
                 }
+                checkPermissions();
             }
 
             logger.info("Remote Config: Activate success.");
