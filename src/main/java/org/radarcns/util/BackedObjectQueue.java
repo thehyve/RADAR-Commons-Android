@@ -16,8 +16,6 @@
 
 package org.radarcns.util;
 
-import com.crashlytics.android.Crashlytics;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,8 +112,7 @@ public class BackedObjectQueue<T> implements Closeable {
                 try {
                     results.add(converter.deserialize(in));
                 } catch (IllegalStateException ex) {
-                    Crashlytics.logException(ex);
-                    logger.warn("Invalid record ignored: {}", ex.getMessage());
+                    logger.warn("Invalid record ignored", ex);
                     results.add(null);
                 }
             }

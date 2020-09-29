@@ -16,7 +16,7 @@
 
 package org.radarcns.android.device;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import java.io.Closeable;
 import java.io.IOException;

@@ -21,10 +21,10 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.common.GoogleApiAvailabilityLight;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
@@ -120,7 +120,7 @@ public class RadarConfiguration {
         this.localConfiguration = new ConcurrentHashMap<>();
         this.handler = new Handler();
 
-        GoogleApiAvailability googleApi = GoogleApiAvailability.getInstance();
+        GoogleApiAvailabilityLight googleApi = GoogleApiAvailabilityLight.getInstance();
         if (googleApi.isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS) {
             status = FirebaseStatus.READY;
             this.handler.postDelayed(new Runnable() {

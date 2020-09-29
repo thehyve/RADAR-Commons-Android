@@ -18,7 +18,7 @@ package org.radarcns.android.data;
 
 import android.content.Context;
 import android.os.Process;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.auth.AppAuthState;

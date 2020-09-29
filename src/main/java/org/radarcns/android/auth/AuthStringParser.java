@@ -16,7 +16,7 @@
 
 package org.radarcns.android.auth;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 /** AuthStringProcessor to parse a string with some form of authentication and convert it to a
  * proper state. */

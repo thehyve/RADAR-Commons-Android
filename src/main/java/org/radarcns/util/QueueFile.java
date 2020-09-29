@@ -16,7 +16,7 @@
 
 package org.radarcns.util;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -21,8 +21,6 @@ import android.content.Intent;
 import android.os.Parcel;
 import android.util.Pair;
 
-import com.crashlytics.android.Crashlytics;
-
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecord;
 import org.radarcns.android.util.SingleThreadExecutorFactory;
@@ -165,7 +163,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
                     } catch (QueueClosedIOException | QueueClosedException ex) {
                         // do not handle
                     } catch (ConcurrentModificationException ex) {
-                        Crashlytics.logException(ex);
+                        logger.error("Concurrently modified cache queue", ex);
                     } catch (IOException ex) {
                         fixCorruptQueue(ex);
                     }
@@ -347,11 +345,9 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
             queueSize.addAndGet(localList.size());
         } catch (IOException ex) {
             logger.error("Failed to add record", ex);
-            Crashlytics.logException(ex);
             queueSize.set(queue.size());
         } catch (IllegalArgumentException ex) {
             logger.error("Tried to expand beyond maximum file size", ex);
-            Crashlytics.logException(ex);
         }
 
         listPool.add(localList);
@@ -359,7 +355,6 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
 
     private void fixCorruptQueue(Exception ex) throws IOException {
         logger.error("Queue was corrupted. Removing cache.", ex);
-        Crashlytics.logException(ex);
         try {
             queue.close();
         } catch (IOException ioex) {

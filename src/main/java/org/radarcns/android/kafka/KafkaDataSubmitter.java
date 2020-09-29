@@ -20,7 +20,7 @@ import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import org.radarcns.android.data.DataCache;
 import org.radarcns.android.data.DataHandler;
 import org.radarcns.data.Record;
