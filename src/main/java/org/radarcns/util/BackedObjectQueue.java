@@ -168,5 +168,7 @@ public class BackedObjectQueue<T> implements Closeable {
          * @throws IOException if a valid object could not be serialized to the stream
          */
         void serialize(T value, OutputStream out) throws IOException;
+
+        void reset();
     }
 }

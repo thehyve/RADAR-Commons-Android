@@ -102,4 +102,9 @@ public class TapeAvroConverter<K extends SpecificRecord, V extends SpecificRecor
         valueWriter.write(o.value, encoder);
         encoder.flush();
     }
+
+    public void reset() {
+        encoder = null;
+        decoder = null;
+    }
 }

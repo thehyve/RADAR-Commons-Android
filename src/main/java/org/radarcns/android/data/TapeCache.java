@@ -343,8 +343,9 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
             logger.info("Writing {} records to file in topic {}", localList.size(), topic);
             queue.addAll(localList);
             queueSize.addAndGet(localList.size());
-        } catch (IOException ex) {
+        } catch (IOException | OutOfMemoryError ex) {
             logger.error("Failed to add record", ex);
+            converter.reset();
             queueSize.set(queue.size());
         } catch (IllegalArgumentException ex) {
             logger.error("Tried to expand beyond maximum file size", ex);
@@ -363,6 +364,7 @@ public class TapeCache<K extends SpecificRecord, V extends SpecificRecord> imple
         if (outputFile.delete()) {
             queueFile = QueueFile.newMapped(outputFile, maxBytes);
             queueSize.set(queueFile.size());
+            converter.reset();
             queue = new BackedObjectQueue<>(queueFile, converter);
         } else {
             throw new IOException("Cannot create new cache.");
