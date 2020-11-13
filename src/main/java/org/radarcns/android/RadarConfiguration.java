@@ -140,8 +140,8 @@ public class RadarConfiguration {
         return config;
     }
 
-    public boolean isInDevelopmentMode() {
-        return config.getInfo().getConfigSettings().isDeveloperModeEnabled();
+    public long minimumFetchIntervalSeconds() {
+        return config.getInfo().getConfigSettings().getMinimumFetchIntervalInSeconds();
     }
 
     public static RadarConfiguration getInstance() {
@@ -157,12 +157,14 @@ public class RadarConfiguration {
     public static RadarConfiguration configure(@NonNull Context context, boolean inDevelopmentMode, int defaultSettings) {
         synchronized (syncObject) {
             if (instance == null) {
-                FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
-                        .setDeveloperModeEnabled(inDevelopmentMode)
-                        .build();
+                FirebaseRemoteConfigSettings.Builder configSettingsBuilder = new FirebaseRemoteConfigSettings.Builder();
+                if (inDevelopmentMode) {
+                    configSettingsBuilder.setMinimumFetchIntervalInSeconds(0L);
+                }
+                FirebaseRemoteConfigSettings configSettings = configSettingsBuilder.build();
                 FirebaseRemoteConfig config = FirebaseRemoteConfig.getInstance();
-                config.setConfigSettings(configSettings);
-                config.setDefaults(defaultSettings);
+                config.setConfigSettingsAsync(configSettings);
+                config.setDefaultsAsync(defaultSettings);
 
                 instance = new RadarConfiguration(context, config);
             }
@@ -189,7 +191,7 @@ public class RadarConfiguration {
      */
     public Task<Void> fetch() {
         long delay;
-        if (isInDevelopmentMode()) {
+        if (minimumFetchIntervalSeconds() == 0L) {
             delay = 0L;
         } else {
             delay = getLong(FIREBASE_FETCH_TIMEOUT_MS_KEY, FIREBASE_FETCH_TIMEOUT_MS_DEFAULT);
@@ -242,7 +244,7 @@ public class RadarConfiguration {
     }
 
     public boolean activateFetched() {
-        return config.activateFetched();
+        return config.activate().getResult();
     }
 
     private String getRawString(String key) {

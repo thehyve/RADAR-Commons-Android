@@ -4,7 +4,7 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.0.1'
+        classpath 'com.android.tools.build:gradle:4.1.1'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.5'
         classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
     }
@@ -82,16 +82,16 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.google.firebase:firebase-crashlytics:17.2.1'
+    implementation 'com.google.firebase:firebase-crashlytics:17.3.0'
     implementation 'com.journeyapps:zxing-android-embedded:3.6.0'
-    implementation 'com.squareup.okhttp3:okhttp:3.14.2'
+    implementation 'com.squareup.okhttp3:okhttp:3.14.9'
     api ('org.apache.avro:avro:1.8.2') {
         exclude group: 'com.thoughtworks.paranamer', module: 'paranamer'
         exclude group: 'org.xerial.snappy', module: 'snappy-java'
         exclude group: 'org.apache.commons', module: 'commons-compress'
         exclude group: 'org.tukaani', module: 'xz'
     }
-    api 'com.google.firebase:firebase-config:19.2.0'
+    api 'com.google.firebase:firebase-config:20.0.1'
     api ('org.radarcns:radar-commons:0.5') {
         exclude group: 'io.confluent', module: 'kafka-avro-serializer'
         exclude group: 'org.apache.kafka', module: 'kafka-clients'
@@ -248,5 +248,5 @@ allprojects {
 }
 
 wrapper {
-    gradleVersion '6.4.1'
+    gradleVersion '6.7'
 }
