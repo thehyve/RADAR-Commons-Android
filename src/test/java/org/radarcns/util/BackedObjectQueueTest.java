@@ -95,4 +95,52 @@ public class BackedObjectQueueTest {
         queue.add(record);
         queue.peek();
     }
+
+    @Test
+    public void testDirectBinaryObject() throws IOException {
+        File file = folder.newFile();
+        Random random = new Random();
+        byte[] data = new byte[176482];
+        random.nextBytes(data);
+
+        assertTrue(file.delete());
+        AvroTopic<MeasurementKey, ActiveAudioRecording> topic = new AvroTopic<>("test",
+                MeasurementKey.getClassSchema(), ActiveAudioRecording.getClassSchema(),
+                MeasurementKey.class, ActiveAudioRecording.class);
+        try (BackedObjectQueue<Record<MeasurementKey, ActiveAudioRecording>> queue = new BackedObjectQueue<>(
+                QueueFile.newDirect(file, 450000000), new TapeAvroConverter<>(topic, specificData))) {
+
+            ByteBuffer buffer = ByteBuffer.wrap(data);
+            Record<MeasurementKey, ActiveAudioRecording> record = new Record<>(
+                    0L, new MeasurementKey("a", "b"), new ActiveAudioRecording(buffer));
+
+            queue.add(record);
+        }
+
+        try (BackedObjectQueue<Record<MeasurementKey, ActiveAudioRecording>> queue = new BackedObjectQueue<>(
+                QueueFile.newDirect(file, 450000000), new TapeAvroConverter<>(topic, specificData))) {
+            Record<MeasurementKey, ActiveAudioRecording> result = queue.peek();
+
+            assertArrayEquals(data, result.value.getData().array());
+        }
+    }
+
+    @Test
+    public void testDirectRegularObject() throws IOException {
+        File file = folder.newFile();
+        assertTrue(file.delete());
+        AvroTopic<MeasurementKey, MeasurementKey> topic = new AvroTopic<>("test",
+                MeasurementKey.getClassSchema(), MeasurementKey.getClassSchema(),
+                MeasurementKey.class, MeasurementKey.class);
+
+        BackedObjectQueue<Record<MeasurementKey, MeasurementKey>> queue;
+        queue = new BackedObjectQueue<>(
+                QueueFile.newDirect(file, 10000), new TapeAvroConverter<>(topic, specificData));
+
+        Record<MeasurementKey, MeasurementKey> record = new Record<>(
+                0L, new MeasurementKey("a", "b"), new MeasurementKey("c", "d"));
+
+        queue.add(record);
+        queue.peek();
+    }
 }

@@ -119,6 +119,11 @@ public final class QueueFile implements Closeable, Iterable<InputStream> {
                 file, MappedQueueFileStorage.MINIMUM_LENGTH, maxSize));
     }
 
+    public static QueueFile newDirect(File file, int maxSize) throws IOException {
+        return new QueueFile(new DirectQueueFileStorage(
+                file, MappedQueueFileStorage.MINIMUM_LENGTH, maxSize));
+    }
+
     /**
      * Read element header data into given element.
      *
@@ -222,7 +227,7 @@ public final class QueueFile implements Closeable, Iterable<InputStream> {
          * The {@link #modCount} value that the iterator believes that the backing QueueFile should
          * have. If this expectation is violated, the iterator has detected concurrent modification.
          */
-        private int expectedModCount;
+        private final int expectedModCount;
 
         private Iterator<QueueFileElement> cacheIterator;
         private QueueFileElement previousCached;

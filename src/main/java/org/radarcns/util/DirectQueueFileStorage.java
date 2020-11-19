@@ -16,17 +16,19 @@
 
 package org.radarcns.util;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.MappedByteBuffer;
+import java.nio.BufferUnderflowException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
  * A storage backend for a QueueFile
  * @author Joris Borgdorff (joris@thehyve.nl)
  */
-public class MappedQueueFileStorage implements QueueStorage {
+public class DirectQueueFileStorage implements QueueStorage {
     /** Initial file size in bytes. */
     public static final int MINIMUM_LENGTH = 4096; // one file system block
 
@@ -45,7 +47,6 @@ public class MappedQueueFileStorage implements QueueStorage {
     private final String fileName;
     private int maximumLength;
 
-    private MappedByteBuffer byteBuffer;
     private boolean closed;
     private int length;
     private final boolean existed;
@@ -61,7 +62,7 @@ public class MappedQueueFileStorage implements QueueStorage {
      * @throws IOException if the file could not be accessed or was smaller than
      *                     {@code QueueFileHeader.HEADER_LENGTH}
      */
-    public MappedQueueFileStorage(File file, int initialLength, int maximumLength) throws IOException {
+    public DirectQueueFileStorage(File file, int initialLength, int maximumLength) throws IOException {
         this.fileName = file.getName();
         if (initialLength < MINIMUM_LENGTH) {
             throw new IllegalArgumentException("Initial length " + initialLength
@@ -90,8 +91,6 @@ public class MappedQueueFileStorage implements QueueStorage {
             length = initialLength;
         }
         channel = randomAccessFile.getChannel();
-        byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, length);
-        byteBuffer.clear();
     }
 
     @Override
@@ -99,18 +98,30 @@ public class MappedQueueFileStorage implements QueueStorage {
         requireNotClosed();
         checkOffsetAndCount(buffer, offset, count);
         int wrappedPosition = wrapPosition(position);
-        byteBuffer.position(wrappedPosition);
+        ByteBuffer dst = ByteBuffer.wrap(buffer, offset, count);
+        channel.position(wrappedPosition);
         if (position + count <= length) {
-            byteBuffer.get(buffer, offset, count);
+            readFully(dst, count);
             return wrapPosition(wrappedPosition + count);
         } else {
             // The read overlaps the EOF.
             // # of bytes to read before the EOF. Guaranteed to be less than Integer.MAX_VALUE.
             int firstPart = length - wrappedPosition;
-            byteBuffer.get(buffer, offset, firstPart);
-            byteBuffer.position(QueueFileHeader.HEADER_LENGTH);
-            byteBuffer.get(buffer, offset + firstPart, count - firstPart);
+            readFully(dst, firstPart);
+            channel.position(QueueFileHeader.HEADER_LENGTH);
+            readFully(dst, count - firstPart);
             return QueueFileHeader.HEADER_LENGTH + count - firstPart;
+        }
+    }
+
+    private void readFully(ByteBuffer buffer, int count) throws IOException {
+        int n = 0;
+        while (n < count) {
+            long numRead = channel.read(buffer);
+            if (numRead == -1) {
+                throw new EOFException();
+            }
+            n += numRead;
         }
     }
 
@@ -138,13 +149,12 @@ public class MappedQueueFileStorage implements QueueStorage {
         flush();
         randomAccessFile.setLength(newLength);
         channel.force(true);
-        byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, newLength);
         length = (int)newLength;
     }
 
     @Override
-    public void flush() {
-        byteBuffer.force();
+    public void flush() throws IOException {
+        channel.force(false);
     }
 
     @Override
@@ -153,20 +163,46 @@ public class MappedQueueFileStorage implements QueueStorage {
         checkOffsetAndCount(buffer, offset, count);
         int wrappedPosition = wrapPosition(position);
 
-        byteBuffer.position(wrappedPosition);
+        ByteBuffer dst = ByteBuffer.wrap(buffer, offset, count);
+        channel.position(wrappedPosition);
         int linearPart = length - wrappedPosition;
         if (linearPart >= count) {
-            byteBuffer.put(buffer, offset, count);
+            writeFully(dst, count);
             return wrapPosition(wrappedPosition + count);
         } else {
             // The write overlaps the EOF.
             // # of bytes to write before the EOF. Guaranteed to be less than Integer.MAX_VALUE.
             if (linearPart > 0) {
-                byteBuffer.put(buffer, offset, linearPart);
+                writeFully(dst, linearPart);
             }
-            byteBuffer.position(QueueFileHeader.HEADER_LENGTH);
-            byteBuffer.put(buffer, offset + linearPart, count - linearPart);
+            channel.position(QueueFileHeader.HEADER_LENGTH);
+            writeFully(dst, count - linearPart);
             return QueueFileHeader.HEADER_LENGTH + count - linearPart;
+        }
+    }
+
+    private void writeFully(ByteBuffer buffer, int count) throws IOException {
+        int n = 0;
+        ByteBuffer writeBuffer;
+        if (buffer.remaining() == count) {
+            writeBuffer = buffer;
+        } else if (buffer.remaining() > count) {
+            writeBuffer = buffer.slice();
+            writeBuffer.limit(count);
+        } else {
+            throw new BufferUnderflowException();
+        }
+
+        while (n < count) {
+            int numWritten = channel.write(writeBuffer);
+            if (numWritten == -1) {
+                throw new EOFException();
+            }
+            n += numWritten;
+        }
+
+        if (writeBuffer != buffer) {
+            buffer.position(buffer.position() + count);
         }
     }
 
@@ -196,7 +232,6 @@ public class MappedQueueFileStorage implements QueueStorage {
     @Override
     public void close() throws IOException {
         closed = true;
-        byteBuffer = null;
         channel.close();
         randomAccessFile.close();
     }
